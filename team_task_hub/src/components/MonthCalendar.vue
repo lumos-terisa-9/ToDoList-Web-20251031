@@ -185,7 +185,7 @@ function selectDate(date) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-/* 1. 空白单元格 (用于占位) */
+/* 空白单元格 (用于占位) */
 .calendar-table td.empty {
   background: transparent; /* 透明背景 */
   border: none;
@@ -198,27 +198,38 @@ function selectDate(date) {
   visibility: hidden;
 }
 
-/* 2. "今天" 的样式 */
+/* "今天" 的样式 */
 .calendar-table td.today {
   background-color: #e0f0ff; /* 你的旧 "today" 颜色 */
   border-color: #007bff; /* 蓝色边框高亮 */
 }
 
-/* 3. "选中" 的样式 */
+/* "选中" 的样式 */
 .calendar-table td.selected {
-  background-color: #007bff; /* 你的旧 "selected" 颜色 */
+  background-color: #007bff;
   border-color: #007bff;
   color: #fff; /* 选中时，内部文字变白 */
   box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
 }
 
-/* 4. 鼠标悬停效果 (非空白格) */
+/* 鼠标悬停效果 (非空白格) */
 .calendar-table td:not(.empty):hover {
   transform: translateY(-3px); /* 悬停时轻微上浮 */
   /* 悬停时背景更亮 */
   background: rgba(255, 255, 255, 0.15);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* 让选中状态立即生效，即使鼠标还在上面 */
+.calendar-table td.selected,
+.calendar-table td.selected:hover {
+  background-color: #007bff !important;
+  border-color: #007bff !important;
+  color: #fff !important;
+  transform: none !important; /* 取消悬停上浮 */
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3) !important;
+}
+
 
 /* 日期数字 */
 .day-number {
