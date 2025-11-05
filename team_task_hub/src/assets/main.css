@@ -1,0 +1,16 @@
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+/* 让 app-background 继承全局渐变 */
+.app-background {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #001533 0%, #0b4da3 50%, #2b7be9 100%);
+  position: relative;
+}
+
+/* 页面内容不被固定头部覆盖 */
+.app-background > .page-content {
+  padding-top: 90px;
+}
