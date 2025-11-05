@@ -14,9 +14,15 @@
         <ToDoList
           :id="picked.toDateString()"
           :title="'日期待办事项'"
-        />
+          @request-modal="handleNewTaskRequest" />
       </div>
     </div>
+
+    <NewTaskModal
+      :isVisible="showModal"
+      @close="showModal = false"
+      @save="handleSaveTask"
+    />
   </div>
 </template>
 
@@ -24,11 +30,27 @@
 import { ref } from 'vue'
 import MonthCalendar from '@/components/MonthCalendar.vue'
 import ToDoList from '@/components/ToDoList.vue'
+import NewTaskModal from '@/components/NewTaskModal.vue'
 
 const picked = ref(new Date())
 function onSelect(d) {
   picked.value = d
   console.log('选中日期：', d)
+}
+
+// 控制模态框的显示状态
+const showModal = ref(false)
+
+// 监听 ToDoList 的事件来打开模态框
+function handleNewTaskRequest() {
+  showModal.value = true
+}
+
+// 处理模态框保存的逻辑
+function handleSaveTask(taskData) {
+  console.log('准备保存任务到日期:', picked.value, taskData)
+  // 实际应用中，您需要在这里编写逻辑，将 taskData 添加到对应 picked 日期的 tasks 数组中 (ToDoList 内部的任务数组)
+  showModal.value = false
 }
 </script>
 

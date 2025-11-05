@@ -7,7 +7,7 @@
          @touchstart="startTouch"
          @touchmove="moveTouch"
          @touchend="endTouch"
-         @mousedown.prevent="startMouse"
+
          @mousemove="moveMouse"
          @mouseup="endMouse"
          @mouseleave="handleMouseLeave">
@@ -133,11 +133,11 @@ function endTouch() {
 }
 
 // Mouse
-function startMouse(e) {
-  if (isBouncing.value) return
-  isDragging.value = true
-  startY.value = e.clientY
-}
+// function startMouse(e) {
+//   if (isBouncing.value) return
+//   isDragging.value = true
+//   startY.value = e.clientY
+// }
 function moveMouseRaw(e) {
   if (!isDragging.value || isBouncing.value) return
   const dy = e.clientY - startY.value

@@ -6,12 +6,10 @@
       <input
         type="text"
         v-model="newTaskText"
-        @keyup.enter="addTask"
-        placeholder="手动输入新的待办事项..."
+        @keyup.enter="requestNewTaskModal" placeholder="手动输入新的待办事项..."
         class="task-input"
       />
-      <button @click="addTask" class="add-btn">
-        <span class="plus-icon">+</span>
+      <button @click="requestNewTaskModal" class="add-btn"> <span class="plus-icon">+</span>
       </button>
     </div>
 
@@ -28,7 +26,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, defineProps, defineEmits } from 'vue';
+
+const emit = defineEmits(['request-modal', 'add-task-object']);
 
 const props = defineProps({
   // 接收外部传入的日期或ID，用于区分不同的任务列表
@@ -49,7 +49,29 @@ const tasks = ref([]); // 任务列表
 function loadTasks(id) {
   // 使用不同的键存储任务，以区分不同日期的列表
   const storedTasks = localStorage.getItem(`tasks-${id}`);
-  tasks.value = storedTasks ? JSON.parse(storedTasks) : [];
+  if (storedTasks) {
+    let loadedData = JSON.parse(storedTasks);
+
+    // 兼容性检查：如果是旧的字符串数组，进行迁移
+    if (loadedData.length > 0 && typeof loadedData[0] === 'string') {
+      tasks.value = loadedData.map(title => ({
+        id: Date.now() + Math.random(), // 赋予临时 ID
+        title: title,
+        details: '',
+        start: '',
+        end: '',
+        repeat: [],
+        category: 'General',
+        color: '#007aff' // 默认颜色
+      }));
+      // 立即保存新格式，防止下次再次触发迁移
+      saveTasks(id, tasks.value);
+    } else {
+      tasks.value = loadedData; // 加载新的对象数组
+    }
+  } else {
+    tasks.value = [];
+  }
 }
 
 // 2. 保存任务到 localStorage
@@ -67,20 +89,32 @@ watch(tasks, (newTasks) => {
   saveTasks(props.id, newTasks);
 }, { deep: true });
 
-
-// 添加待办事项
-function addTask() {
+// 添加待办事项 -> 请求打开模态框
+function requestNewTaskModal() {
   const text = newTaskText.value.trim();
-  if (text) {
-    tasks.value.unshift(text); // 新任务放在最前面
-    newTaskText.value = '';
-  }
+  // 触发事件，并将输入框内容作为参数传递给父组件
+  emit('request-modal', text);
+  // 清空输入框，但不在本地添加任务，任务的添加由模态框的保存操作驱动
+  newTaskText.value = '';
 }
 
 // 删除待办事项
 function deleteTask(index) {
   tasks.value.splice(index, 1);
 }
+
+function addNewTaskObject(taskObject) {
+  // 确保任务对象有一个 ID (如果模态框没有生成)
+  if (!taskObject.id) {
+    taskObject.id = Date.now();
+  }
+  tasks.value.unshift(taskObject);
+}
+
+defineExpose({
+  addNewTaskObject,
+  tasks // 也可以暴露 tasks 数组，但暴露方法更安全
+});
 </script>
 
 <style scoped>
@@ -104,6 +138,8 @@ function deleteTask(index) {
   padding: 16px;
   color: #fff; /* 文本颜色为白色，以适应深色背景 */
   margin-top: 16px;
+  z-index: 10; /* 确保在最上层 */
+  pointer-events: auto; /* 重新启用鼠标事件 */
 }
 
 .panel-title {
@@ -160,6 +196,46 @@ function deleteTask(index) {
   font-size: 1.5rem;
   font-weight: bold;
   line-height: 1;
+}
+
+/* 【新增样式】任务信息布局 */
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  transition: background-color 0.3s;
+}
+
+.task-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column; /* 标题和时间垂直排列 */
+  text-align: left;
+}
+
+.task-text {
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.task-time {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* 【新增样式】任务类别颜色点 */
+.task-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0; /* 阻止它被压缩 */
 }
 
 /* ========================================= */
