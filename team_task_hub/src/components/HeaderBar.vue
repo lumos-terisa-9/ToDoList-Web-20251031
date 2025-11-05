@@ -45,9 +45,17 @@ function handleOrgClick() {
   width: 100%;
   z-index: 1000;
 
-  /* 纯色背景（深蓝色）*/
-  background-color: rgba(0, 43, 92, 0.95);
-  backdrop-filter: blur(10px); /* 可保留玻璃感模糊 */
+  /* === 【修改点】增强的毛玻璃效果 === */
+
+  /* 1. 使用非常透明的浅色背景，让后面的深色背景透出来 */
+  background-color: rgba(255, 255, 255, 0.15); /* 透明度为 15% 的白色 */
+
+  /* 2. 略微增加模糊度 */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); /* 兼容 Safari */
+
+  /* 3. 添加一个细小的底部分界线，增加玻璃的质感和悬浮感 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 
   padding: 15px 30px; /* Header 左右间距 */
   color: white;

@@ -307,6 +307,11 @@ function releaseDrag() {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  /*添加 60px 的顶部内边距，为 HeaderBar 留出空间
+   *设置 box-sizing，确保 padding 不会增加 JS 设置的 height
+   */
+  padding-top: 60px;
+  box-sizing: border-box;
 }
 
 /* 自定义细蓝色滚动条 */
