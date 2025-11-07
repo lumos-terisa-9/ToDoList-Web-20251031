@@ -14,11 +14,29 @@
     </div>
 
     <div class="task-list-container">
+
       <ul v-if="tasks.length > 0" class="task-list">
-        <li v-for="(task, index) in tasks" :key="index" class="task-item">
-          <span class="task-text">{{ task }}</span>
+
+        <li v-for="(task, index) in tasks" :key="task.id || index" class="task-item">
+
+        <span
+          class="task-color-dot"
+          :style="{ backgroundColor: task.color || '#007aff' }">
+        </span>
+
+          <div class="task-info">
+            <span class="task-text">{{ task.title }}</span>
+
+            <span v-if="task.start" class="task-time">
+            {{ formatTaskTime(task.start) }}
+          </span>
+            <span v-else-if="task.details" class="task-time">
+            {{ task.details.substring(0, 50) }} </span>
+          </div>
+
           <button @click="deleteTask(index)" class="delete-btn">×</button>
         </li>
+
       </ul>
       <p v-else class="no-tasks">🎉 今天没有待办事项！</p>
     </div>
@@ -109,6 +127,26 @@ function addNewTaskObject(taskObject) {
     taskObject.id = Date.now();
   }
   tasks.value.unshift(taskObject);
+}
+
+// 格式化时间函数，将一个 Date/Time 字符串或对象转换成易读的时间格式
+const formatTaskTime = (dateTimeString) => {
+  // 假设 dateTimeString 是一个有效的日期时间字符串 (例如 ISO 格式)
+  const date = new Date(dateTimeString);
+
+  // 检查日期对象是否有效
+  if (isNaN(date.getTime())) {
+    return 'Invalid Date';
+  }
+
+  // 格式化为 'HH:mm'，例如 '09:30'
+  const timeOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false // 使用 24 小时制
+  };
+
+  return date.toLocaleTimeString('zh-CN', timeOptions);
 }
 
 defineExpose({

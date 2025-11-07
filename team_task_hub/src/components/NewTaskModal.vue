@@ -9,7 +9,6 @@
 
       <div class="modal-body-wrapper">
         <div class="modal-body">
-
           <div class="input-group">
             <input type="text" v-model="newEvent.title" placeholder="Title" class="title-input">
           </div>
@@ -36,11 +35,11 @@
             <div class="option-row repeat-row">
               <span>Repeat</span>
               <div class="day-selector">
-                <button v-for="day in ['M', 'T', 'W', 'T', 'F', 'S', 'S']"
-                        :key="day"
+                <button v-for="day in daysOfWeek"
+                        :key="day.key"
                         :class="{ 'selected-day': newEvent.repeat.includes(day) }"
                         @click="toggleRepeatDay(day)">
-                  {{ day }}
+                  {{ day.label }}
                 </button>
               </div>
             </div>
@@ -82,6 +81,17 @@ const categories = ref([
   {key: 'Personal', color: '#5856d6'}, // 紫
 ]);
 
+// 定义一个新的星期数组
+const daysOfWeek = ref([
+  { key: 'Mon', label: 'M' },
+  { key: 'Tue', label: 'T' },
+  { key: 'Wed', label: 'W' },
+  { key: 'Thu', label: 'T' },
+  { key: 'Fri', label: 'F' },
+  { key: 'Sat', label: 'S' },
+  { key: 'Sun', label: 'S' }
+]);
+
 // 初始化一个空的新日程对象
 const initialEvent = {
   title: '',
@@ -107,12 +117,13 @@ watch(() => props.isVisible, (val) => {
 }, {immediate: true});
 
 
-function toggleRepeatDay(day) {
-  const index = newEvent.value.repeat.indexOf(day);
+// toggleRepeatDay 现在接收的是 'Mon', 'Tue' 等唯一键
+function toggleRepeatDay(dayKey) {
+  const index = newEvent.value.repeat.indexOf(dayKey);
   if (index > -1) {
     newEvent.value.repeat.splice(index, 1); // 移除
   } else {
-    newEvent.value.repeat.push(day); // 添加
+    newEvent.value.repeat.push(dayKey); // 添加
   }
 }
 
@@ -125,7 +136,18 @@ function save() {
     alert('Title is required!'); // 简单的验证
     return;
   }
-  emit('save', {...newEvent.value});
+  // 查找完整的 category 对象
+  const selectedCategory = categories.value.find(
+    cat => cat.key === newEvent.value.category
+  );
+  // 获取颜色，如果找不到则设置一个默认颜色
+  const taskColor = selectedCategory ? selectedCategory.color : '#007aff'; // 默认 iOS 蓝色
+  // 创建一个新的对象，包含所有数据 + 颜色
+  const taskData = {
+    ...newEvent.value,
+    color: taskColor // <-- 将颜色添加到对象中
+  };
+  emit('save', taskData);
 }
 </script>
 

@@ -11,6 +11,7 @@
          @mousemove="moveMouse"
          @mouseup="endMouse"
          @mouseleave="handleMouseLeave">
+
       <!-- 用 router-view 显示 HomeView.vue 等页面 -->
       <router-view />
     </div>
@@ -38,6 +39,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import HeaderBar from './components/HeaderBar.vue'
+
 
 // 节流函数（无需装 lodash，手写 16 ms 够用）
 const throttle = (fn, delay = 16) => {

@@ -12,6 +12,7 @@
         <p>已选日期：{{ picked.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
 
         <ToDoList
+          ref="todoListRef"
           :id="picked.toDateString()"
           :title="'日期待办事项'"
           @request-modal="handleNewTaskRequest" />
@@ -41,15 +42,25 @@ function onSelect(d) {
 // 控制模态框的显示状态
 const showModal = ref(false)
 
+// 创建一个 ref 来引用 ToDoList 组件
+const todoListRef = ref(null)
+
 // 监听 ToDoList 的事件来打开模态框
 function handleNewTaskRequest() {
   showModal.value = true
 }
 
-// 处理模态框保存的逻辑
+// 修改 handleSaveTask 函数
 function handleSaveTask(taskData) {
   console.log('准备保存任务到日期:', picked.value, taskData)
-  // 实际应用中，您需要在这里编写逻辑，将 taskData 添加到对应 picked 日期的 tasks 数组中 (ToDoList 内部的任务数组)
+
+  // 关键：检查 ref 是否存在，然后调用 ToDoList 内部的 addNewTaskObject 方法
+  if (todoListRef.value) {
+    todoListRef.value.addNewTaskObject(taskData)
+  } else {
+    console.error('ToDoList component reference is not found.')
+  }
+
   showModal.value = false
 }
 </script>
