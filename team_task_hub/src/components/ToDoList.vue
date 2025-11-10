@@ -2,7 +2,8 @@
   <div class="frosted-glass-panel">
     <h3 class="panel-title">{{ title }}</h3>
 
-    <div class="task-input-group">
+    <!-- 条件渲染：只有 showInput 为 true 时才显示输入框 -->
+    <div v-if="showInput" class="task-input-group">
       <input
         type="text"
         v-model="newTaskText"
@@ -39,6 +40,11 @@ const props = defineProps({
   title: {
     type: String,
     default: '我的待办清单'
+  },
+  // 【新增】控制是否显示输入框
+  showInput: {
+    type: Boolean,
+    default: true
   }
 });
 
@@ -256,7 +262,7 @@ defineExpose({
   border-radius: 3px;
 }
 .task-list-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.5); /* 浅色透明滑块 */
+  background: rgba(44, 43, 43, 0.5); /* 浅色透明滑块 */
   border-radius: 3px;
 }
 

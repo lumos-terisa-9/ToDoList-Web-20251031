@@ -11,10 +11,20 @@
         <h2>任务面板</h2>
         <p>已选日期：{{ picked.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
 
+        <!-- 个人待办 -->
         <ToDoList
           :id="picked.toDateString()"
-          :title="'日期待办事项'"
-          @request-modal="handleNewTaskRequest" />
+          :title="'个人待办'"
+          @request-modal="handleNewTaskRequest"
+          class="todo-list-item"
+        />
+        <!-- 组织待办 -->
+        <ToDoList
+          :id="'org-' + picked.toDateString()"
+          :title="'组织待办'"
+          :show-input="false"
+          class="todo-list-item"
+        />
       </div>
     </div>
 
@@ -71,7 +81,7 @@ function handleSaveTask(taskData) {
   flex: 1;
   align-items: stretch;
   /* 【新增】卡片外边距，让卡片看起来是浮动的 */
-  padding: 20px 30px;
+  padding: 20px 80px; /* 核心修改点：两侧间距增大！！ */
   gap: 20px; /* 卡片之间的间距 */
 }
 
