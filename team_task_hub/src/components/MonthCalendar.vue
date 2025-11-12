@@ -6,6 +6,14 @@
       <button @click="nextMonth" class="nav-btn">›</button>
     </div>
 
+    <!-- 添加分类信息显示 -->
+    <div class="categories-display">
+      <div v-for="cat in categories" :key="cat.key" class="category-item">
+        <span class="category-dot" :style="{ backgroundColor: cat.color }"></span>
+        <span class="category-name">{{ cat.key }}</span>
+      </div>
+    </div>
+
     <table class="calendar-table">
       <thead>
       <tr>
@@ -47,6 +55,14 @@ const emit = defineEmits(['update:modelValue', 'select'])
 const current = ref(new Date(props.modelValue))
 // 将星期表头改为英文大写以匹配图片
 const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+// 分类信息
+const categories = ref([
+  {key: 'Work', color: '#ff3b30'}, // 红
+  {key: 'Study', color: '#34c759'}, // 绿
+  {key: 'Fun', color: '#ff9500'}, // 橙
+  {key: 'Personal', color: '#5856d6'}, // 紫
+])
 
 const year = computed(() => current.value.getFullYear())
 const month = computed(() => current.value.getMonth())
@@ -143,6 +159,36 @@ function selectDate(date) {
   border-color: rgba(255, 255, 255, 0.6);
 }
 
+/* 分类信息显示 */
+.categories-display {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.category-name {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* 日历表格主体 */
 .calendar-table {
   width: 100%;
@@ -166,7 +212,7 @@ function selectDate(date) {
 
 /* 日期单元格 (卡片) */
 .calendar-table td {
-  height: 90px;  /* 固定高度，使其更像卡片 */
+  height: 65px;  /* 固定高度，使其更像卡片 */
   text-align: left; /* 内容左上角对齐 */
   vertical-align: top; /* 内容左上角对齐 */
 
@@ -177,7 +223,7 @@ function selectDate(date) {
   border: 1px solid rgba(255, 255, 255, 0.2); /* 浅边框 */
 
   border-radius: 16px;
-  padding: 16px;
+  padding: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
 

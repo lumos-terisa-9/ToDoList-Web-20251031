@@ -23,6 +23,7 @@
               <span>Starts</span>
               <div class="date-time-display">
                 <input type="datetime-local" v-model="newEvent.start" class="datetime-input">
+                <button @click="confirmStartTime" class="confirm-btn" title="确认开始时间">✓</button>
               </div>
             </div>
 
@@ -30,13 +31,14 @@
               <span>Ends</span>
               <div class="date-time-display">
                 <input type="datetime-local" v-model="newEvent.end" class="datetime-input">
+                <button @click="confirmEndTime" class="confirm-btn" title="确认结束时间">✓</button>
               </div>
             </div>
 
             <div class="option-row repeat-row">
               <span>Repeat</span>
               <div class="day-selector">
-                <button v-for="day in ['M', 'T', 'W', 'T', 'F', 'S', 'S']"
+                <button v-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
                         :key="day"
                         :class="{ 'selected-day': newEvent.repeat.includes(day) }"
                         @click="toggleRepeatDay(day)">
@@ -88,7 +90,7 @@ const initialEvent = {
   details: '',
   start: '', // 初始设置为空字符串，让 datetime-local 处理
   end: '',
-  repeat: [], // 存储 ['M', 'W'] 这样的值
+  repeat: [], // 存储 ['一', '三'] 这样的值
   category: categories.value[0].key, // 默认第一个类别
 };
 
@@ -116,6 +118,26 @@ function toggleRepeatDay(day) {
   }
 }
 
+// 确认开始时间
+function confirmStartTime() {
+  if (!newEvent.value.start) {
+    alert('请先选择开始时间');
+    return;
+  }
+  // 这里可以添加确认后的逻辑，比如验证时间格式等
+  console.log('开始时间已确认:', newEvent.value.start);
+}
+
+// 确认结束时间
+function confirmEndTime() {
+  if (!newEvent.value.end) {
+    alert('请先选择结束时间');
+    return;
+  }
+  // 这里可以添加确认后的逻辑，比如验证时间格式等
+  console.log('结束时间已确认:', newEvent.value.end);
+}
+
 function close() {
   emit('close');
 }
@@ -131,7 +153,14 @@ function save() {
 
 <style scoped>
 /* --- Modal Container & Overlay (与上次类似，略去重复代码) --- */
-.modal-overlay { /* ... 略 ... */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
 }
 
 .modal-container {
@@ -247,11 +276,17 @@ function save() {
   font-size: 1rem;
 }
 
-.option-row.last-row {
+.option-row:last-child {
   border-bottom: none;
 }
 
 /* --- Date/Time Input (简化处理) --- */
+.date-time-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .datetime-input {
   background: #3a3a3c;
   color: #0a84ff;
@@ -260,6 +295,26 @@ function save() {
   padding: 5px;
   font-size: 0.9rem;
   outline: none;
+}
+
+/* 确认按钮样式 */
+.confirm-btn {
+  background: #0a84ff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.confirm-btn:hover {
+  background: #0070e0;
 }
 
 /* --- Repeat (Days) --- */
@@ -273,14 +328,14 @@ function save() {
 }
 
 .day-selector button {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: #3a3a3c;
   color: #8e8e93;
   border: none;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 600;
   transition: all 0.2s;
 }
