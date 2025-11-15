@@ -38,6 +38,7 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		&models.ActivityParticipation{},
 		&models.ScoreRecord{},
 		&models.Permission{},
+		&models.VerificationCode{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("表迁移失败: %v", err)

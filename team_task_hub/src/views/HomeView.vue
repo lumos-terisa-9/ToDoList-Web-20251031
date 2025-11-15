@@ -27,7 +27,17 @@
         />
       </div>
     </div>
-
+    <div class="connection-test-panel">
+  <h4>🔗 后端连接测试</h4>
+  <button @click="testBackendConnection" :disabled="testing">
+    {{ testing ? '测试中...' : '测试连接' }}
+  </button>
+  <div v-if="testResult" class="test-result" :class="testResult.status">
+    <span v-if="testResult.status === 'success'">✅ {{ testResult.message }}</span>
+    <span v-else>❌ {{ testResult.message }}</span>
+    <pre v-if="testResult.data">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
+  </div>
+</div>
     <NewTaskModal
       :isVisible="showModal"
       @close="showModal = false"
@@ -61,6 +71,40 @@ function handleSaveTask(taskData) {
   console.log('准备保存任务到日期:', picked.value, taskData)
   // 实际应用中，您需要在这里编写逻辑，将 taskData 添加到对应 picked 日期的 tasks 数组中 (ToDoList 内部的任务数组)
   showModal.value = false
+}
+const testing = ref(false)
+const testResult = ref(null)
+
+const testBackendConnection = async () => {
+  testing.value = true
+  testResult.value = null
+  
+  try {
+    // 测试健康检查端点
+    const response = await fetch('http://localhost:8080/health')
+    
+    if (!response.ok) {
+      throw new Error(`HTTP错误! 状态: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    testResult.value = {
+      status: 'success',
+      message: `连接成功! 后端状态: ${data.status}`,
+      data: data
+    }
+    
+    console.log('✅ 后端连接测试成功:', data)
+  } catch (error) {
+    testResult.value = {
+      status: 'error',
+      message: `连接失败: ${error.message}`,
+      data: null
+    }
+    console.error('❌ 后端连接测试失败:', error)
+  } finally {
+    testing.value = false
+  }
 }
 </script>
 
@@ -123,5 +167,71 @@ function handleSaveTask(taskData) {
 /* 【删除】分隔线 */
 .split-pane::before {
   display: none;
+}
+
+.connection-test-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: 15px;
+  max-width: 300px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  font-size: 14px;
+}
+
+.connection-test-panel h4 {
+  margin: 0 0 10px 0;
+  color: #303133;
+}
+
+.connection-test-panel button {
+  background: #409eff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.connection-test-panel button:disabled {
+  background: #c0c4cc;
+  cursor: not-allowed;
+}
+
+.connection-test-panel button:hover:not(:disabled) {
+  background: #66b1ff;
+}
+
+.test-result {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.test-result.success {
+  background: #f0f9ff;
+  color: #67c23a;
+  border: 1px solid #b3e19d;
+}
+
+.test-result.error {
+  background: #fef0f0;
+  color: #f56c6c;
+  border: 1px solid #fbc4c4;
+}
+
+.test-result pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 5px;
+  border-radius: 3px;
+  margin-top: 5px;
+  font-size: 10px;
+  overflow-x: auto;
 }
 </style>

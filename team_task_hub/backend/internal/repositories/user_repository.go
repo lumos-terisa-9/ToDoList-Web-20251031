@@ -98,6 +98,16 @@ func (r *UserRepository) FindAll(page, pageSize int) ([]models.User, error) {
 	return users, nil
 }
 
+// ExistsById 检查id（学号）是否存在
+func (r *UserRepository) ExistsById(id uint) (bool, error) {
+	var count int64
+	result := r.db.Model(&models.User{}).Where("id = ?", id).Count(&count)
+	if result.Error != nil {
+		return false, fmt.Errorf("检查ID存在性失败: %v", result.Error)
+	}
+	return count > 0, nil
+}
+
 // ExistsByEmail 检查邮箱是否已存在
 func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
 	var count int64

@@ -17,6 +17,12 @@ type Config struct {
 	DBName     string
 	JWTSecret  string
 	DebugMode  bool
+
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
 }
 
 func LoadConfig() *Config {
@@ -34,6 +40,12 @@ func LoadConfig() *Config {
 		DBName:     getEnv("DB_NAME", "team_task_hub"),
 		JWTSecret:  getEnv("JWT_SECRET", "default-jwt-secret-change-in-production"),
 		DebugMode:  getEnvBool("DEBUG", true),
+
+		SMTPHost:     getEnv("SMTP_HOST", "smtp.qq.com"),
+		SMTPPort:     getEnvAsInt("SMTP_PORT", 587),
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:     getEnv("SMTP_FROM", ""),
 	}
 
 	log.Printf("配置加载成功 - 数据库: %s@%s:%s/%s",
@@ -54,6 +66,16 @@ func getEnvBool(key string, defaultValue bool) bool {
 		if boolValue, err := strconv.ParseBool(value); err == nil {
 			return boolValue
 		}
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	if value, exists := os.LookupEnv(key); exists {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+		log.Printf("环境变量 %s 不是有效的整数，使用默认值", key)
 	}
 	return defaultValue
 }
