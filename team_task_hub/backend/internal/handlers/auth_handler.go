@@ -18,6 +18,15 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 }
 
 // Register 用户注册
+// @Summary 用户注册
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body string true "注册参数" example({"id":1001,"username":"张三","email":"user@example.com","password":"password123","code":"123456"})
+// @Success 201 {object} string "注册成功"
+// @Failure 400 {object} string "参数错误"
+// @Failure 409 {object} string "用户已存在"
+// @Router /api/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
 		UserID   uint   `json:"id" binding:"required"`
@@ -73,6 +82,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 // Login 用户登录
+// @Summary 用户登录
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body string true "登录参数" example({"identifier":"1001","password":"password123"})
+// @Success 200 {object} string "登录成功"
+// @Failure 400 {object} string "参数错误"
+// @Failure 401 {object} string "认证失败"
+// @Router /api/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req struct {
 		Identifier string `json:"identifier" binding:"required"`

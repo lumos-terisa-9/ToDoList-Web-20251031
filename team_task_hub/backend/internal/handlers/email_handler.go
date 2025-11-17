@@ -39,10 +39,10 @@ type VerifyCodeRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body SendVerificationCodeRequest true "发送验证码请求参数"
-// @Success 200 {object} gin.H "验证码发送成功"
-// @Failure 400 {object} gin.H "请求参数错误"
-// @Failure 429 {object} gin.H "请求过于频繁"
-// @Failure 500 {object} gin.H "服务器内部错误"
+// @Success 200 {object} string "验证码发送成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 429 {object} string "请求过于频繁"
+// @Failure 500 {object} string "服务器内部错误"
 // @Router /api/email/send-verification [post]
 func (h *EmailHandler) SendVerificationCode(c *gin.Context) {
 	var req SendVerificationCodeRequest
@@ -107,9 +107,9 @@ func (h *EmailHandler) SendVerificationCode(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body VerifyCodeRequest true "验证验证码请求参数"
-// @Success 200 {object} gin.H "验证码验证成功"
-// @Failure 400 {object} gin.H "验证码无效或已过期"
-// @Failure 500 {object} gin.H "服务器内部错误"
+// @Success 200 {object} string "验证码验证成功"
+// @Failure 400 {object} string "验证码无效或已过期"
+// @Failure 500 {object} string "服务器内部错误"
 // @Router /api/email/verify [post]
 func (h *EmailHandler) VerifyCode(c *gin.Context) {
 	var req VerifyCodeRequest
@@ -175,8 +175,8 @@ func (h *EmailHandler) VerifyCode(c *gin.Context) {
 // @Description 测试邮箱SMTP服务器连接状态（仅用于调试）
 // @Tags 系统管理
 // @Produce json
-// @Success 200 {object} gin.H "SMTP连接正常"
-// @Failure 500 {object} gin.H "SMTP连接失败"
+// @Success 200 {object} string "SMTP连接正常"
+// @Failure 500 {object} string "SMTP连接失败"
 // @Router /api/admin/email/test-connection [get]
 func (h *EmailHandler) TestSMTPConnection(c *gin.Context) {
 	if err := h.emailService.TestConnection(); err != nil {
@@ -199,8 +199,8 @@ func (h *EmailHandler) TestSMTPConnection(c *gin.Context) {
 // @Description 清理数据库中已过期的验证码记录（定时任务调用）
 // @Tags 系统管理
 // @Produce json
-// @Success 200 {object} gin.H "清理完成"
-// @Failure 500 {object} gin.H "清理失败"
+// @Success 200 {object} string "清理完成"
+// @Failure 500 {object} string "清理失败"
 // @Router /api/admin/email/cleanup [post]
 func (h *EmailHandler) CleanupExpiredCodes(c *gin.Context) {
 	if err := h.emailService.CleanupExpiredCodes(); err != nil {
@@ -223,7 +223,7 @@ func (h *EmailHandler) CleanupExpiredCodes(c *gin.Context) {
 // @Description 获取邮箱验证码发送统计信息
 // @Tags 系统管理
 // @Produce json
-// @Success 200 {object} gin.H "统计信息"
+// @Success 200 {object} string "统计信息"
 // @Router /api/admin/email/stats [get]
 func (h *EmailHandler) GetEmailStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
