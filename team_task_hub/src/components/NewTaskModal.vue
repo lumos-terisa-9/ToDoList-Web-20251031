@@ -102,7 +102,7 @@ watch(() => props.isVisible, (val) => {
     // 确保每次打开时都使用默认值或继承选中的日期（如果需要更复杂的集成）
     newEvent.value = {
       ...initialEvent,
-      // 可以在这里继承 picked 日期（如果 HomeView 将 picked.value 传进来）
+      // 可以在这里继承 picked 日期（如果 PersonView 将 picked.value 传进来）
       // 暂时简化为清空
     };
   }

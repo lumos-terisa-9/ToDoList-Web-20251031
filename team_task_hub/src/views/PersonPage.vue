@@ -1,5 +1,5 @@
 <template>
-  <div class="home-container">
+  <div class="person-page">  <!-- 修改类名为 person-page -->
     <div class="split-pane">
       <MonthCalendar
         v-model="picked"
@@ -28,16 +28,16 @@
       </div>
     </div>
     <div class="connection-test-panel">
-  <h4>🔗 后端连接测试</h4>
-  <button @click="testBackendConnection" :disabled="testing">
-    {{ testing ? '测试中...' : '测试连接' }}
-  </button>
-  <div v-if="testResult" class="test-result" :class="testResult.status">
-    <span v-if="testResult.status === 'success'">✅ {{ testResult.message }}</span>
-    <span v-else>❌ {{ testResult.message }}</span>
-    <pre v-if="testResult.data">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
-  </div>
-</div>
+      <h4>🔗 后端连接测试</h4>
+      <button @click="testBackendConnection" :disabled="testing">
+        {{ testing ? '测试中...' : '测试连接' }}
+      </button>
+      <div v-if="testResult" class="test-result" :class="testResult.status">
+        <span v-if="testResult.status === 'success'">✅ {{ testResult.message }}</span>
+        <span v-else>❌ {{ testResult.message }}</span>
+        <pre v-if="testResult.data">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
+      </div>
+    </div>
     <NewTaskModal
       :isVisible="showModal"
       @close="showModal = false"
@@ -78,22 +78,22 @@ const testResult = ref(null)
 const testBackendConnection = async () => {
   testing.value = true
   testResult.value = null
-  
+
   try {
     // 测试健康检查端点
     const response = await fetch('http://localhost:8080/health')
-    
+
     if (!response.ok) {
       throw new Error(`HTTP错误! 状态: ${response.status}`)
     }
-    
+
     const data = await response.json()
     testResult.value = {
       status: 'success',
       message: `连接成功! 后端状态: ${data.status}`,
       data: data
     }
-    
+
     console.log('✅ 后端连接测试成功:', data)
   } catch (error) {
     testResult.value = {
@@ -109,14 +109,13 @@ const testBackendConnection = async () => {
 </script>
 
 <style scoped>
-.home-container {
-  height: calc(100vh - 60px);
+.person-page {  /* 修改类名为 person-page */
+  min-height: 100vh;  /* 改为 min-height 确保覆盖整个视口 */
+  background: linear-gradient(to bottom, #0e59b8, #16b1f4);  /* 添加蓝色渐变背景 */
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  /* 【移除】这里的背景设置，让 App.vue 的蓝色渐变透过来 */
-  /* background: linear-gradient(to bottom, #012855, #0e59b8); */
 }
 
 /* 分栏容器 */
@@ -124,23 +123,19 @@ const testBackendConnection = async () => {
   display: flex;
   flex: 1;
   align-items: stretch;
-  /* 【新增】卡片外边距，让卡片看起来是浮动的 */
-  padding: 20px 80px; /* 核心修改点：两侧间距增大！！ */
-  gap: 20px; /* 卡片之间的间距 */
+  padding: 85px 120px 50px 120px;
+  gap: 20px;
+  min-height: calc(100vh - 140px); /* 确保内容区域足够高 */
 }
 
 /* 左侧：日历卡片 */
 .calendar-pane {
   flex: 1;
   max-width: 50%;
-
-  /* === 【核心修改】整体毛玻璃效果 === */
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-
-  /* 【修改】统一圆角，使其成为完整的浮动卡片 */
   border-radius: 16px;
   overflow-y: auto;
   padding: 16px;
@@ -150,23 +145,15 @@ const testBackendConnection = async () => {
 /* 右侧：任务面板卡片 */
 .task-pane {
   flex: 1;
-  /* 【修改】统一使用与左侧相同的毛玻璃效果 */
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-
   color: #fff;
-  /* 【修改】统一圆角 */
   border-radius: 16px;
   padding: 32px;
   overflow-y: auto;
   box-sizing: border-box;
-}
-
-/* 【删除】分隔线 */
-.split-pane::before {
-  display: none;
 }
 
 .connection-test-panel {
@@ -233,5 +220,25 @@ const testBackendConnection = async () => {
   margin-top: 5px;
   font-size: 10px;
   overflow-x: auto;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .split-pane {
+    padding: 20px;
+    flex-direction: column;
+  }
+
+  .calendar-pane {
+    max-width: 100%;
+  }
+
+  .connection-test-panel {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    max-width: none;
+    margin: 20px;
+  }
 }
 </style>
