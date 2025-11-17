@@ -130,11 +130,22 @@
         </div>
       </div>
     </div>
+
+    <!-- 登录注册模态框 -->
+    <LoginModal
+      :isVisible="showLoginModal"
+      @close="showLoginModal = false"
+      @login-success="handleLoginSuccess"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import LoginModal from '@/components/LoginModal.vue'
+
+const router = useRouter()
 
 // 广告数据
 const ads = ref([
@@ -181,6 +192,7 @@ const faqs = ref([
 
 const currentAdIndex = ref(0)
 const activeFaq = ref(0)
+const showLoginModal = ref(false)
 let autoPlayTimer = null
 
 // 广告轮播控制
@@ -209,6 +221,21 @@ function toggleFaq(index) {
   activeFaq.value = activeFaq.value === index ? -1 : index
 }
 
+function handleLoginSuccess(user) {
+  console.log('登录成功:', user)
+  // 跳转到个人页面
+  router.push('/personpage')
+}
+
+// 暴露打开登录模态框的方法，供HeaderBar调用
+function openLoginModal() {
+  showLoginModal.value = true
+}
+
+defineExpose({
+  openLoginModal
+})
+
 onMounted(() => {
   startAutoPlay()
 })
@@ -221,7 +248,7 @@ onUnmounted(() => {
 <style scoped>
 .home-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2791fb 0%, #9940fa 100%);
   color: white;
   position: relative;
   z-index: 1;

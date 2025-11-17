@@ -1,5 +1,5 @@
 <template>
-  <div class="person-page">  <!-- 修改类名为 person-page -->
+  <div class="person-page">
     <div class="split-pane">
       <MonthCalendar
         v-model="picked"
@@ -27,6 +27,8 @@
         />
       </div>
     </div>
+
+    <!-- 连接测试面板 -->
     <div class="connection-test-panel">
       <h4>🔗 后端连接测试</h4>
       <button @click="testBackendConnection" :disabled="testing">
@@ -38,6 +40,15 @@
         <pre v-if="testResult.data">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
       </div>
     </div>
+
+    <!-- 个人信息模态框 -->
+    <UserProfileModal
+      :isVisible="showProfileModal"
+      :user="currentUser"
+      @close="showProfileModal = false"
+      @update-user="handleUserUpdate"
+    />
+
     <NewTaskModal
       :isVisible="showModal"
       @close="showModal = false"
@@ -47,34 +58,64 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import MonthCalendar from '@/components/MonthCalendar.vue'
 import ToDoList from '@/components/ToDoList.vue'
 import NewTaskModal from '@/components/NewTaskModal.vue'
+import UserProfileModal from '@/components/UserProfileModal.vue'
+
+const router = useRouter()
 
 const picked = ref(new Date())
+const showModal = ref(false)
+const showProfileModal = ref(false)
+const currentUser = ref(null)
+const testing = ref(false)
+const testResult = ref(null)
+
+// 检查登录状态
+function checkAuth() {
+  const userData = localStorage.getItem('currentUser')
+  if (!userData) {
+    // 未登录，跳转到首页
+    router.push('/')
+    return
+  }
+  currentUser.value = JSON.parse(userData)
+}
+
 function onSelect(d) {
   picked.value = d
   console.log('选中日期：', d)
 }
 
-// 控制模态框的显示状态
-const showModal = ref(false)
-
-// 监听 ToDoList 的事件来打开模态框
 function handleNewTaskRequest() {
   showModal.value = true
 }
 
-// 处理模态框保存的逻辑
 function handleSaveTask(taskData) {
   console.log('准备保存任务到日期:', picked.value, taskData)
-  // 实际应用中，您需要在这里编写逻辑，将 taskData 添加到对应 picked 日期的 tasks 数组中 (ToDoList 内部的任务数组)
   showModal.value = false
 }
-const testing = ref(false)
-const testResult = ref(null)
 
+function handleUserUpdate(updatedUser) {
+  currentUser.value = updatedUser
+  // 更新本地存储
+  localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+}
+
+// 显示个人信息模态框
+function showProfileModalFunc() {
+  showProfileModal.value = true
+}
+
+// 暴露方法给父组件
+defineExpose({
+  showProfileModal: showProfileModalFunc
+})
+
+// 后端连接测试
 const testBackendConnection = async () => {
   testing.value = true
   testResult.value = null
@@ -106,12 +147,16 @@ const testBackendConnection = async () => {
     testing.value = false
   }
 }
+
+onMounted(() => {
+  checkAuth()
+})
 </script>
 
 <style scoped>
-.person-page {  /* 修改类名为 person-page */
-  min-height: 100vh;  /* 改为 min-height 确保覆盖整个视口 */
-  background: linear-gradient(to bottom, #0e59b8, #16b1f4);  /* 添加蓝色渐变背景 */
+.person-page {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #0e59b8, #16b1f4);
   padding: 0;
   margin: 0;
   display: flex;
@@ -123,9 +168,9 @@ const testBackendConnection = async () => {
   display: flex;
   flex: 1;
   align-items: stretch;
-  padding: 85px 120px 50px 120px;
+  padding: 90px 120px 40px 120px;
   gap: 20px;
-  min-height: calc(100vh - 140px); /* 确保内容区域足够高 */
+  min-height: calc(100vh - 140px);
 }
 
 /* 左侧：日历卡片 */
@@ -225,7 +270,7 @@ const testBackendConnection = async () => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .split-pane {
-    padding: 20px;
+    padding: 90px 20px 20px 20px;
     flex-direction: column;
   }
 
