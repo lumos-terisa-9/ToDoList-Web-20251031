@@ -16,18 +16,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
 const router = useRouter()
 
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
 
+// 根据当前路由判断是否显示登录状态
+const shouldShowLoginStatus = computed(() => {
+  return route.name === 'personpage'
+})
+
 // 检查登录状态
 function checkLoginStatus() {
   const userData = localStorage.getItem('currentUser')
-  if (userData) {
+  if (userData && shouldShowLoginStatus.value) {
     currentUser.value = JSON.parse(userData)
     isLoggedIn.value = true
   } else {
@@ -37,11 +43,11 @@ function checkLoginStatus() {
 }
 
 function handleUserClick() {
-  if (isLoggedIn.value) {
-    // 已登录，显示个人信息模态框
+  if (isLoggedIn.value && shouldShowLoginStatus.value) {
+    // 在个人页面已登录，显示个人信息模态框
     emit('show-profile')
   } else {
-    // 未登录，触发打开登录模态框
+    // 未登录或在首页，触发打开登录模态框
     emit('open-login')
   }
 }
@@ -50,12 +56,18 @@ function handleOrgClick() {
   alert("我的组织 功能暂未上线");
 }
 
-// 监听存储变化（用于多标签页同步）
+// 监听存储变化和路由变化
 function handleStorageChange(e) {
   if (e.key === 'currentUser') {
     checkLoginStatus()
   }
 }
+
+// 监听路由变化
+import { watch } from 'vue'
+watch(() => route.name, () => {
+  checkLoginStatus()
+})
 
 onMounted(() => {
   checkLoginStatus()

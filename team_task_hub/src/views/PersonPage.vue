@@ -47,6 +47,7 @@
       :user="currentUser"
       @close="showProfileModal = false"
       @update-user="handleUserUpdate"
+      @logout="handleLogout"
     />
 
     <NewTaskModal
@@ -103,6 +104,13 @@ function handleUserUpdate(updatedUser) {
   currentUser.value = updatedUser
   // 更新本地存储
   localStorage.setItem('currentUser', JSON.stringify(updatedUser))
+}
+
+function handleLogout() {
+  // 清除用户数据
+  currentUser.value = null
+  // 跳转到首页
+  router.push('/')
 }
 
 // 显示个人信息模态框
