@@ -28,19 +28,6 @@
       </div>
     </div>
 
-    <!-- 连接测试面板 -->
-    <div class="connection-test-panel">
-      <h4>🔗 后端连接测试</h4>
-      <button @click="testBackendConnection" :disabled="testing">
-        {{ testing ? '测试中...' : '测试连接' }}
-      </button>
-      <div v-if="testResult" class="test-result" :class="testResult.status">
-        <span v-if="testResult.status === 'success'">✅ {{ testResult.message }}</span>
-        <span v-else>❌ {{ testResult.message }}</span>
-        <pre v-if="testResult.data">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
-      </div>
-    </div>
-
     <!-- 个人信息模态框 -->
     <UserProfileModal
       :isVisible="showProfileModal"
@@ -72,8 +59,6 @@ const picked = ref(new Date())
 const showModal = ref(false)
 const showProfileModal = ref(false)
 const currentUser = ref(null)
-const testing = ref(false)
-const testResult = ref(null)
 
 // 检查登录状态
 function checkAuth() {
@@ -122,39 +107,6 @@ function showProfileModalFunc() {
 defineExpose({
   showProfileModal: showProfileModalFunc
 })
-
-// 后端连接测试
-const testBackendConnection = async () => {
-  testing.value = true
-  testResult.value = null
-
-  try {
-    // 测试健康检查端点
-    const response = await fetch('http://localhost:8080/health')
-
-    if (!response.ok) {
-      throw new Error(`HTTP错误! 状态: ${response.status}`)
-    }
-
-    const data = await response.json()
-    testResult.value = {
-      status: 'success',
-      message: `连接成功! 后端状态: ${data.status}`,
-      data: data
-    }
-
-    console.log('✅ 后端连接测试成功:', data)
-  } catch (error) {
-    testResult.value = {
-      status: 'error',
-      message: `连接失败: ${error.message}`,
-      data: null
-    }
-    console.error('❌ 后端连接测试失败:', error)
-  } finally {
-    testing.value = false
-  }
-}
 
 onMounted(() => {
   checkAuth()
@@ -209,72 +161,6 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.connection-test-panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  padding: 15px;
-  max-width: 300px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  font-size: 14px;
-}
-
-.connection-test-panel h4 {
-  margin: 0 0 10px 0;
-  color: #303133;
-}
-
-.connection-test-panel button {
-  background: #409eff;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.connection-test-panel button:disabled {
-  background: #c0c4cc;
-  cursor: not-allowed;
-}
-
-.connection-test-panel button:hover:not(:disabled) {
-  background: #66b1ff;
-}
-
-.test-result {
-  margin-top: 10px;
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.test-result.success {
-  background: #f0f9ff;
-  color: #67c23a;
-  border: 1px solid #b3e19d;
-}
-
-.test-result.error {
-  background: #fef0f0;
-  color: #f56c6c;
-  border: 1px solid #fbc4c4;
-}
-
-.test-result pre {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 5px;
-  border-radius: 3px;
-  margin-top: 5px;
-  font-size: 10px;
-  overflow-x: auto;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .split-pane {
@@ -284,14 +170,6 @@ onMounted(() => {
 
   .calendar-pane {
     max-width: 100%;
-  }
-
-  .connection-test-panel {
-    position: relative;
-    bottom: auto;
-    right: auto;
-    max-width: none;
-    margin: 20px;
   }
 }
 </style>

@@ -13,7 +13,7 @@
             <div class="form-group">
               <input
                 type="text"
-                v-model="loginForm.username"
+                v-model="loginForm.identifier"
                 placeholder="用户名或邮箱"
                 required
               >
@@ -52,14 +52,14 @@
             <div class="form-group verification-group">
               <input
                 type="text"
-                v-model="registerForm.verificationCode"
+                v-model="registerForm.code"
                 placeholder="验证码"
                 required
               >
               <button
                 type="button"
                 class="verification-btn"
-                :disabled="verificationCooldown > 0"
+                :disabled="verificationCooldown > 0 || !registerForm.email"
                 @click="sendVerificationCode"
               >
                 {{ verificationCooldown > 0 ? `${verificationCooldown}s` : '获取验证码' }}
@@ -112,8 +112,11 @@ const isLogin = ref(true)
 const loading = ref(false)
 const verificationCooldown = ref(0)
 
+// API 基础URL
+const API_BASE = 'http://localhost:8080/api'
+
 const loginForm = ref({
-  username: '',
+  identifier: '',
   password: ''
 })
 
@@ -122,14 +125,8 @@ const registerForm = ref({
   email: '',
   password: '',
   confirmPassword: '',
-  verificationCode: ''
+  code: ''
 })
-
-// 模拟用户数据（临时存储）
-const users = ref(JSON.parse(localStorage.getItem('users') || '[]'))
-
-// 模拟验证码存储
-const verificationCodes = ref(new Map())
 
 function close() {
   emit('close')
@@ -137,13 +134,13 @@ function close() {
 }
 
 function resetForms() {
-  loginForm.value = { username: '', password: '' }
+  loginForm.value = { identifier: '', password: '' }
   registerForm.value = {
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
-    verificationCode: ''
+    code: ''
   }
 }
 
@@ -153,85 +150,109 @@ function toggleMode() {
 }
 
 async function handleLogin() {
+  if (!loginForm.value.identifier || !loginForm.value.password) {
+    alert('请填写完整的登录信息')
+    return
+  }
+
   loading.value = true
 
   try {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        identifier: loginForm.value.identifier,
+        password: loginForm.value.password
+      })
+    })
 
-    // 临时验证逻辑 - 总是返回成功
-    if (true) {
-      const user = users.value.find(u =>
-        (u.username === loginForm.value.username || u.email === loginForm.value.username) &&
-        u.password === loginForm.value.password
-      ) || {
-        username: loginForm.value.username,
-        email: 'user@example.com'
+    const data = await response.json()
+
+    if (response.ok) {
+      // 登录成功
+      const user = {
+        id: data.id || loginForm.value.identifier,
+        username: data.username || loginForm.value.identifier,
+        email: data.email || `${loginForm.value.identifier}@example.com`
       }
 
       // 保存登录状态
       localStorage.setItem('currentUser', JSON.stringify(user))
+      localStorage.setItem('token', data.token || 'mock-token')
+
       emit('login-success', user)
       close()
 
       // 跳转到个人页面
       router.push('/personpage')
+    } else {
+      // 登录失败
+      alert(data.message || '登录失败，请检查用户名和密码')
     }
   } catch (error) {
-    alert('登录失败：' + error.message)
+    console.error('登录请求失败:', error)
+    alert('登录失败，请检查网络连接')
   } finally {
     loading.value = false
   }
 }
 
 async function handleRegister() {
+  // 前端验证
+  if (!registerForm.value.username || !registerForm.value.email ||
+    !registerForm.value.password || !registerForm.value.code) {
+    alert('请填写所有必填字段')
+    return
+  }
+
+  // 验证用户名是否为数字
+  if (!/^\d+$/.test(registerForm.value.username)) {
+    alert('用户名必须为数字')
+    return
+  }
+
   if (registerForm.value.password !== registerForm.value.confirmPassword) {
     alert('两次输入的密码不一致')
     return
   }
 
-  // 验证验证码（模拟）
-  const storedCode = verificationCodes.value.get(registerForm.value.email)
-  if (!storedCode || storedCode !== registerForm.value.verificationCode) {
-    alert('验证码错误')
+  if (registerForm.value.password.length < 6) {
+    alert('密码长度至少6位')
     return
   }
 
   loading.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: parseInt(registerForm.value.username), // 转换为数字类型
+        username: registerForm.value.username,
+        email: registerForm.value.email,
+        password: registerForm.value.password,
+        code: registerForm.value.code
+      })
+    })
 
-    // 检查用户名是否已存在
-    if (users.value.some(u => u.username === registerForm.value.username)) {
-      alert('用户名已存在')
-      return
+    const data = await response.json()
+
+    if (response.ok) {
+      alert('注册成功！请登录')
+      isLogin.value = true
+      resetForms()
+    } else {
+      alert(data.message || '注册失败')
     }
-
-    // 检查邮箱是否已存在
-    if (users.value.some(u => u.email === registerForm.value.email)) {
-      alert('邮箱已被注册')
-      return
-    }
-
-    // 创建新用户
-    const newUser = {
-      username: registerForm.value.username,
-      email: registerForm.value.email,
-      password: registerForm.value.password,
-      avatar: '',
-      createdAt: new Date().toISOString()
-    }
-
-    users.value.push(newUser)
-    localStorage.setItem('users', JSON.stringify(users.value))
-
-    alert('注册成功！请登录')
-    isLogin.value = true
-    resetForms()
-
   } catch (error) {
-    alert('注册失败：' + error.message)
+    console.error('注册请求失败:', error)
+    alert('注册失败，请检查网络连接')
   } finally {
     loading.value = false
   }
@@ -243,22 +264,45 @@ async function sendVerificationCode() {
     return
   }
 
-  // 模拟发送验证码
-  const code = Math.random().toString().slice(2, 8)
-  verificationCodes.value.set(registerForm.value.email, code)
+  // 邮箱格式验证
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(registerForm.value.email)) {
+    alert('请输入有效的邮箱地址')
+    return
+  }
 
-  console.log(`验证码已发送到 ${registerForm.value.email}: ${code}`) // 开发时查看
+  try {
+    const response = await fetch(`${API_BASE}/email/send-verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: registerForm.value.email,
+        business: 'register' // 注册业务
+      })
+    })
 
-  // 开始倒计时
-  verificationCooldown.value = 60
-  const timer = setInterval(() => {
-    verificationCooldown.value--
-    if (verificationCooldown.value <= 0) {
-      clearInterval(timer)
+    const data = await response.json()
+
+    if (response.ok) {
+      alert('验证码已发送到您的邮箱，请查收')
+
+      // 开始倒计时
+      verificationCooldown.value = 60
+      const timer = setInterval(() => {
+        verificationCooldown.value--
+        if (verificationCooldown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    } else {
+      alert(data.message || '验证码发送失败')
     }
-  }, 1000)
-
-  alert('验证码已发送到您的邮箱（请在控制台查看）')
+  } catch (error) {
+    console.error('发送验证码失败:', error)
+    alert('验证码发送失败，请检查网络连接')
+  }
 }
 
 // 监听模态框显示状态
