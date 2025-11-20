@@ -11,6 +11,8 @@ import (
 
 	_ "team_task_hub/backend/docs"
 
+	"team_task_hub/backend/internal/cache"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -29,6 +31,12 @@ func New() *App {
 
 	// 加载配置
 	cfg := config.LoadConfig()
+
+	//初始化redis缓存
+	if err := cache.InitRedis(cfg); err != nil {
+		log.Printf("Redis初始化失败: %v", err)
+		log.Println("应用将继续运行，但无缓存功能")
+	}
 
 	// 初始化数据库
 	db := initDatabase(cfg)
@@ -91,6 +99,9 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 // Run 启动服务器
 func (a *App) Run() {
+	//优雅关闭缓存
+	defer cache.Close()
+
 	log.Printf("服务器启动在 http://localhost:%s", a.config.ServerPort)
 	a.router.Run(":" + a.config.ServerPort)
 }

@@ -28,6 +28,13 @@ definitions:
     - code
     - email
     type: object
+  services.LogoutResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -206,4 +213,38 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: '用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）'
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.LogoutResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 用户登出
+      tags:
+      - 认证
 swagger: "2.0"

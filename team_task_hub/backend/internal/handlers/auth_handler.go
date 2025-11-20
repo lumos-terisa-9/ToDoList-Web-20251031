@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"team_task_hub/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -133,5 +134,56 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"token_type":   "Bearer",
 			"expires_in":   86400,
 		},
+	})
+}
+
+// Logout 用户登出接口
+// @Summary 用户登出
+// @Description 用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} services.LogoutResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+	// 从Authorization头获取令牌
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "未提供认证令牌",
+		})
+		return
+	}
+
+	// 解析Bearer Token的格式
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "令牌格式错误，应为：Bearer <token>",
+		})
+		return
+	}
+
+	tokenString := parts[1] // 提取出真正的Token字符串
+
+	// 调用服务层使令牌失效
+	if err := h.authService.Logout(tokenString); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "登出失败",
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, services.LogoutResponse{
+		Message: "登出成功",
+		Success: true,
 	})
 }

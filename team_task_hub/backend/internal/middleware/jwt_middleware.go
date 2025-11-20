@@ -11,9 +11,17 @@ import (
 // AuthMiddleware JWT认证中间件
 func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从Header获取Token
+		var tokenString string
+
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
 				"message": "未提供认证令牌",
@@ -21,19 +29,6 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		// 提取Bearer token
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"message": "令牌格式错误",
-			})
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 
 		// 验证JWT令牌
 		claims, err := authService.ValidateJWT(tokenString)
