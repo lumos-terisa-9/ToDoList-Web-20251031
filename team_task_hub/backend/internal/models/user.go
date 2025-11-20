@@ -4,7 +4,7 @@ type User struct {
 	ID           uint   `gorm:"primaryKey;autoIncrement;type:BIGINT UNSIGNED" json:"id"`
 	Username     string `gorm:"size:50;uniqueIndex;not null" json:"username"`
 	Email        string `gorm:"size:100;uniqueIndex;not null" json:"email"`
-	PasswordHash string `gorm:"size:255;not null" json:"-"`
+	PasswordHash string `gorm:"size:255;not null" json:"passwordhash"`
 	AvatarURL    string `gorm:"size:255" json:"avatar_url"`
 }
 

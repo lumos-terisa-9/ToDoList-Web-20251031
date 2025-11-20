@@ -2,6 +2,7 @@ package router
 
 import (
 	"team_task_hub/backend/internal/handlers"
+	"team_task_hub/backend/internal/middleware"
 	"team_task_hub/backend/internal/repositories"
 	"team_task_hub/backend/internal/services"
 
@@ -20,4 +21,10 @@ func SetupAuthRoutes(r *gin.RouterGroup, db *gorm.DB, emailService *services.Ema
 	auth := r.Group("/auth")
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
+
+	protected := r.Group("/auth")
+	protected.Use(middleware.AuthMiddleware(authService))
+	{
+		protected.POST("/logout", authHandler.Logout)
+	}
 }
