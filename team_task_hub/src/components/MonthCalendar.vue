@@ -212,7 +212,7 @@ function selectDate(date) {
 
 /* 日期单元格 (卡片) */
 .calendar-table td {
-  height: 65px;  /* 固定高度，使其更像卡片 */
+  height: 60px;  /* 固定高度，使其更像卡片 */
   text-align: left; /* 内容左上角对齐 */
   vertical-align: top; /* 内容左上角对齐 */
 

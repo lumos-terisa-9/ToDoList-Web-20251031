@@ -5,10 +5,10 @@
     <div class="right-section">
       <button class="header-btn" @click="handleOrgClick">我的组织</button>
 
-      <button class="header-btn login-btn" @click="handleLoginClick">
+      <button class="header-btn login-btn" @click="handleUserClick">
         <transition name="fade">
           <span key="login" v-if="!isLoggedIn">登录</span>
-          <span key="hello" v-else>你好，{{ username }}</span>
+          <span key="hello" v-else>你好，{{ currentUser?.username }}</span>
         </transition>
       </button>
     </div>
@@ -16,22 +16,70 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { useRoute, useRouter } from 'vue-router'
 
-const isLoggedIn = ref(false);
-const username = ref("小明");
+const route = useRoute()
+const router = useRouter()
 
-function handleLoginClick() {
-  if (!isLoggedIn.value) {
-    isLoggedIn.value = true;
+const isLoggedIn = ref(false)
+const currentUser = ref(null)
+
+// 根据当前路由判断是否显示登录状态
+const shouldShowLoginStatus = computed(() => {
+  return route.name === 'personpage'
+})
+
+// 检查登录状态
+function checkLoginStatus() {
+  const userData = localStorage.getItem('currentUser')
+  if (userData && shouldShowLoginStatus.value) {
+    currentUser.value = JSON.parse(userData)
+    isLoggedIn.value = true
   } else {
-    alert("个人信息 功能暂未上线");
+    isLoggedIn.value = false
+    currentUser.value = null
+  }
+}
+
+function handleUserClick() {
+  if (isLoggedIn.value && shouldShowLoginStatus.value) {
+    // 在个人页面已登录，显示个人信息模态框
+    emit('show-profile')
+  } else {
+    // 未登录或在首页，触发打开登录模态框
+    emit('open-login')
   }
 }
 
 function handleOrgClick() {
   alert("我的组织 功能暂未上线");
 }
+
+// 监听存储变化和路由变化
+function handleStorageChange(e) {
+  if (e.key === 'currentUser') {
+    checkLoginStatus()
+  }
+}
+
+// 监听路由变化
+import { watch } from 'vue'
+watch(() => route.name, () => {
+  checkLoginStatus()
+})
+
+onMounted(() => {
+  checkLoginStatus()
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
+})
+
+// 定义事件
+const emit = defineEmits(['open-login', 'show-profile'])
 </script>
 
 <style scoped>

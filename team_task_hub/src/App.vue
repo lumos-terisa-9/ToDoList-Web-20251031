@@ -1,378 +1,15 @@
-<!--<template>-->
-<!--  <div class="app-background">-->
-<!--    <HeaderBar />-->
-
-<!--    <div class="scroll-content"-->
-<!--         ref="scrollContent"-->
-<!--         @touchstart="startTouch"-->
-<!--         @touchmove="moveTouch"-->
-<!--         @touchend="endTouch"-->
-
-<!--         @mousemove="moveMouse"-->
-<!--         @mouseup="endMouse"-->
-<!--         @mouseleave="handleMouseLeave">-->
-<!--      &lt;!&ndash; 用 router-view 显示 HomeView.vue 等页面 &ndash;&gt;-->
-<!--      <router-view />-->
-<!--    </div>-->
-<!--&lt;!&ndash;      <main class="page-content">&ndash;&gt;-->
-<!--&lt;!&ndash;        <h1>欢迎来到team_task_hub</h1>&ndash;&gt;-->
-<!--&lt;!&ndash;        <p>using vue3</p>&ndash;&gt;-->
-<!--&lt;!&ndash;        <div style="height:1000px;"></div>&ndash;&gt;-->
-<!--&lt;!&ndash;      </main>&ndash;&gt;-->
-<!--&lt;!&ndash;    </div>&ndash;&gt;-->
-
-<!--    <transition name="fade">-->
-<!--      <div v-if="showTopTip" class="scroll-tip top-tip" :style="{ transform: `translate(-50%, ${topTipOffset}px)` }">-->
-<!--        我已经到顶啦-->
-<!--      </div>-->
-<!--    </transition>-->
-
-<!--    <transition name="fade">-->
-<!--      <div v-if="showBottomTip" class="scroll-tip bottom-tip" :style="{ transform: `translate(-50%, ${bottomTipOffset}px)` }">-->
-<!--        我已经到底啦-->
-<!--      </div>-->
-<!--    </transition>-->
-<!--  </div>-->
-<!--</template>-->
-
-<!--<script setup>-->
-<!--import { ref, onMounted, onUnmounted } from "vue";-->
-<!--import HeaderBar from './components/HeaderBar.vue'-->
-
-<!--// 节流函数（无需装 lodash，手写 16 ms 够用）-->
-<!--const throttle = (fn, delay = 16) => {-->
-<!--  let last = 0-->
-<!--  return (...args) => {-->
-<!--    const now = Date.now()-->
-<!--    if (now - last > delay) {-->
-<!--      last = now-->
-<!--      fn.apply(this, args)-->
-<!--    }-->
-<!--  }-->
-<!--}-->
-
-<!--const scrollContent = ref(null)-->
-
-<!--const startY = ref(0)-->
-<!--const offsetY = ref(0)-->
-<!--const isDragging = ref(false)-->
-<!--const isBouncing = ref(false)-->
-
-<!--const showTopTip = ref(false)-->
-<!--const showBottomTip = ref(false)-->
-<!--const topTipOffset = ref(0)-->
-<!--const bottomTipOffset = ref(0)-->
-
-<!--function setupScrollContainer() {-->
-<!--  const el = scrollContent.value-->
-<!--  if (!el) return-->
-
-<!--  const viewportHeight = window.innerHeight-->
-<!--  el.style.height = viewportHeight + 'px'-->
-<!--  el.style.overflowY = 'auto'-->
-<!--}-->
-
-<!--// 监听窗口大小变化-->
-<!--function handleResize() {-->
-<!--  setupScrollContainer()-->
-<!--}-->
-
-<!--// 软键盘弹起/收起重新计算高度-->
-<!--function handleVisualResize() {-->
-<!--  setupScrollContainer()-->
-<!--}-->
-
-<!--onMounted(() => {-->
-<!--  setupScrollContainer()-->
-<!--  window.addEventListener('resize', handleResize)-->
-<!--  // 添加全局鼠标抬起监听，解决鼠标移出窗口的问题-->
-<!--  // 3. 滚轮性能优化-->
-<!--  const el = scrollContent.value-->
-<!--  el.addEventListener("wheel", handleWheel, { passive: false })-->
-<!--  window.visualViewport?.addEventListener("resize", handleVisualResize)-->
-
-<!--  onUnmounted(() => {-->
-<!--    window.removeEventListener("resize", handleResize)-->
-<!--    el.removeEventListener("wheel", handleWheel, { passive: false })-->
-<!--    window.visualViewport?.removeEventListener("resize", handleVisualResize)-->
-<!--  })-->
-<!--})-->
-
-<!--// 全局鼠标抬起处理-->
-
-<!--// 鼠标移出元素处理-->
-<!--function handleMouseLeave() {-->
-<!--  if (isDragging.value && !isBouncing.value) {-->
-<!--    releaseDrag()-->
-<!--  }-->
-<!--}-->
-
-<!--// 显示提示文字并自动淡出-->
-<!--function showTip(tipRef) {-->
-<!--  if (tipRef.value) return-->
-<!--  tipRef.value = true-->
-<!--  setTimeout(() => tipRef.value = false, 1500)-->
-<!--}-->
-
-<!--// Touch-->
-<!--function startTouch(e) {-->
-<!--  if (isBouncing.value) return-->
-<!--  isDragging.value = true-->
-<!--  startY.value = e.touches[0].clientY-->
-<!--}-->
-<!--function moveTouchRaw(e) {-->
-<!--  if (!isDragging.value || isBouncing.value) return-->
-<!--  const dy = e.touches[0].clientY - startY.value-->
-<!--  handleDrag(dy)-->
-<!--}-->
-<!--const moveTouch = throttle(moveTouchRaw, 16)-->
-
-<!--function endTouch() {-->
-<!--  if (!isDragging.value || isBouncing.value) return-->
-<!--  releaseDrag()-->
-<!--}-->
-
-<!--// Mouse-->
-<!--// function startMouse(e) {-->
-<!--//   if (isBouncing.value) return-->
-<!--//   isDragging.value = true-->
-<!--//   startY.value = e.clientY-->
-<!--// }-->
-<!--function moveMouseRaw(e) {-->
-<!--  if (!isDragging.value || isBouncing.value) return-->
-<!--  const dy = e.clientY - startY.value-->
-<!--  handleDrag(dy)-->
-<!--}-->
-<!--const moveMouse = throttle(moveMouseRaw, 16)-->
-
-<!--function endMouse() {-->
-<!--  if (!isDragging.value || isBouncing.value) return-->
-<!--  releaseDrag()-->
-<!--}-->
-
-<!--// Wheel - 只在边界时阻止默认行为-->
-<!--function handleWheel(e) {-->
-<!--  if (isBouncing.value) {-->
-<!--    e.preventDefault()-->
-<!--    return-->
-<!--  }-->
-
-<!--  const el = scrollContent.value-->
-<!--  if (!el) return-->
-
-<!--  const scrollTop = el.scrollTop-->
-<!--  const scrollHeight = el.scrollHeight-->
-<!--  const clientHeight = el.clientHeight-->
-<!--  const maxScroll = Math.max(0, scrollHeight - clientHeight)-->
-
-<!--  // 检测边界 - 只在边界情况下阻止默认行为-->
-<!--  const atTop = scrollTop <= 0 && e.deltaY < 0-->
-<!--  const atBottom = scrollTop >= maxScroll && e.deltaY > 0 && maxScroll > 0-->
-
-<!--  if (atTop || atBottom) {-->
-<!--    e.preventDefault()-->
-<!--    simulateDrag(-e.deltaY)-->
-<!--  }-->
-<!--  // 其他情况让浏览器正常处理滚动-->
-<!--}-->
-
-<!--// 模拟拖拽动画-->
-<!--function simulateDrag(dy) {-->
-<!--  if (isBouncing.value) return // 已经在回弹中，不再触发新的回弹-->
-
-<!--  const el = scrollContent.value-->
-<!--  if (!el) return-->
-
-<!--  const scrollTop = el.scrollTop-->
-<!--  const scrollHeight = el.scrollHeight-->
-<!--  const clientHeight = el.clientHeight-->
-<!--  const maxScroll = Math.max(0, scrollHeight - clientHeight)-->
-
-<!--  const atTop = scrollTop <= 0 && dy > 0-->
-<!--  const atBottom = scrollTop >= maxScroll && dy < 0 && maxScroll > 0-->
-
-<!--  if (atTop || atBottom) {-->
-<!--    isBouncing.value = true // 开始回弹-->
-
-<!--    // 保存当前滚动位置，用于固定滚动条-->
-<!--    const currentScrollTop = el.scrollTop-->
-
-<!--    offsetY.value = dy / 2-->
-<!--    el.style.transform = `translateY(${offsetY.value}px)`-->
-
-<!--    // 固定滚动条位置但不隐藏-->
-<!--    el.scrollTop = currentScrollTop-->
-
-<!--    if (atTop) {-->
-<!--      showTip(showTopTip)-->
-<!--      topTipOffset.value = offsetY.value / 2-->
-<!--    }-->
-<!--    if (atBottom) {-->
-<!--      showTip(showBottomTip)-->
-<!--      bottomTipOffset.value = offsetY.value / 2-->
-<!--    }-->
-
-<!--    // 自动回弹-->
-<!--    setTimeout(() => {-->
-<!--      el.style.transition = 'transform 1s ease'-->
-<!--      el.style.transform = 'translateY(0)'-->
-<!--      setTimeout(() => {-->
-<!--        el.style.transition = ''-->
-<!--        // 恢复滚动位置-->
-<!--        el.scrollTop = currentScrollTop-->
-<!--        offsetY.value = 0-->
-<!--        topTipOffset.value = 0-->
-<!--        bottomTipOffset.value = 0-->
-<!--        isBouncing.value = false // 回弹结束-->
-<!--      }, 1000) // 改为1000ms，与过渡时间保持一致-->
-<!--    }, 50)-->
-<!--  }-->
-<!--}-->
-
-<!--// 拖拽逻辑-->
-<!--function handleDrag(dy) {-->
-<!--  if (isBouncing.value) return-->
-
-<!--  const el = scrollContent.value-->
-<!--  if (!el) return-->
-
-<!--  const scrollTop = el.scrollTop-->
-<!--  const scrollHeight = el.scrollHeight-->
-<!--  const clientHeight = el.clientHeight-->
-<!--  const maxScroll = Math.max(0, scrollHeight - clientHeight)-->
-
-<!--  const atTop = scrollTop <= 0 && dy > 0   // 顶部向下-->
-<!--  const atBottom = scrollTop >= maxScroll && dy < 0 && maxScroll > 0 // 底部向上-->
-
-<!--  if (atTop || atBottom) {-->
-<!--    // 保存当前滚动位置，用于固定滚动条-->
-<!--    const currentScrollTop = el.scrollTop-->
-
-<!--    offsetY.value = dy / 2-->
-<!--    el.style.transform = `translateY(${offsetY.value}px)`-->
-
-<!--    // 固定滚动条位置但不隐藏-->
-<!--    el.scrollTop = currentScrollTop-->
-
-<!--    if (atTop) {-->
-<!--      showTip(showTopTip)-->
-<!--      topTipOffset.value = offsetY.value / 2-->
-<!--    }-->
-<!--    if (atBottom) {-->
-<!--      showTip(showBottomTip)-->
-<!--      bottomTipOffset.value = offsetY.value / 2-->
-<!--    }-->
-<!--  }-->
-<!--}-->
-
-<!--// 回弹-->
-<!--function releaseDrag() {-->
-<!--  if (isBouncing.value) return // 回弹中不处理释放-->
-
-<!--  const el = scrollContent.value-->
-<!--  if (!el) return-->
-<!--  isBouncing.value = true // 开始回弹-->
-
-<!--  // 保存当前滚动位置-->
-<!--  const currentScrollTop = el.scrollTop-->
-
-<!--  el.style.transition = 'transform 1s ease'-->
-<!--  el.style.transform = 'translateY(0)'-->
-<!--  setTimeout(() => {-->
-<!--    el.style.transition = ''-->
-<!--    // 恢复滚动位置-->
-<!--    el.scrollTop = currentScrollTop-->
-<!--    isBouncing.value = false // 回弹结束-->
-<!--  }, 1000) // 改为1000ms，与过渡时间保持一致-->
-
-<!--  offsetY.value = 0-->
-<!--  topTipOffset.value = 0-->
-<!--  bottomTipOffset.value = 0-->
-<!--  isDragging.value = false-->
-<!--}-->
-<!--</script>-->
-
-<!--<style>-->
-<!--.app-background {-->
-<!--  min-height: 100vh;-->
-<!--  background: linear-gradient(to bottom, #012855, #0e59b8);-->
-<!--  font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;-->
-<!--  overflow: hidden;-->
-<!--  position: relative;-->
-<!--}-->
-
-<!--.scroll-content {-->
-<!--  width: 100%;-->
-<!--  /* 高度通过JS动态设置 */-->
-<!--  overflow-y: auto;-->
-<!--  -webkit-overflow-scrolling: touch;-->
-<!--  scroll-behavior: smooth;-->
-<!--  /*添加 60px 的顶部内边距，为 HeaderBar 留出空间-->
-<!--   *设置 box-sizing，确保 padding 不会增加 JS 设置的 height-->
-<!--   */-->
-<!--  padding-top: 60px;-->
-<!--  box-sizing: border-box;-->
-<!--}-->
-
-<!--/* 自定义细蓝色滚动条 */-->
-<!--.scroll-content::-webkit-scrollbar {-->
-<!--  width: 6px; /* 滚动条宽度 */-->
-<!--}-->
-
-<!--.scroll-content::-webkit-scrollbar-track {-->
-<!--  background: rgba(255, 255, 255, 0.1); /* 轨道背景 */-->
-<!--  border-radius: 3px;-->
-<!--}-->
-
-<!--.scroll-content::-webkit-scrollbar-thumb {-->
-<!--  background: linear-gradient(to bottom, #1e90ff, #0066cc); /* 蓝色渐变 */-->
-<!--  border-radius: 3px;-->
-<!--  transition: background 0.3s ease;-->
-<!--}-->
-
-<!--.scroll-content::-webkit-scrollbar-thumb:hover {-->
-<!--  background: linear-gradient(to bottom, #4da6ff, #0080ff); /* 悬停时更亮的蓝色 */-->
-<!--}-->
-
-<!--/* Firefox 滚动条样式 */-->
-<!--.scroll-content {-->
-<!--  scrollbar-width: thin;-->
-<!--  scrollbar-color: #1e90ff rgba(255, 255, 255, 0.1);-->
-<!--}-->
-
-<!--.page-content {-->
-<!--  padding: 24px;-->
-<!--  color: white;-->
-<!--  margin-top: 120px;-->
-<!--  text-align: center;-->
-<!--}-->
-
-<!--.scroll-tip {-->
-<!--  position: fixed;-->
-<!--  left: 50%;-->
-<!--  color: white;-->
-<!--  font-size: 13px;-->
-<!--  background: rgba(0,0,0,0.3);-->
-<!--  padding: 6px 12px;-->
-<!--  border-radius: 8px;-->
-<!--  z-index: 2000;-->
-<!--  pointer-events: none;-->
-<!--}-->
-
-<!--.top-tip { top: 100px; }-->
-<!--.bottom-tip { bottom: 50px; }-->
-
-<!--.fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }-->
-<!--.fade-enter-from, .fade-leave-to { opacity: 0; }-->
-<!--</style>-->
 <template>
-  <div class="app-background">
-    <HeaderBar />
+  <div class="app-container">
+    <HeaderBar @open-login="openLoginModal" @show-profile="showProfileModal" />
 
-    <div class="scroll-content"
-         ref="scrollContent">
-      <!-- 用 router-view 显示 HomeView.vue 等页面 -->
-      <router-view />
+    <div class="scroll-content" ref="scrollContent">
+      <router-view v-slot="{ Component }">
+        <component
+          :is="Component"
+          ref="pageComponent"
+          @open-login="openLoginModal"
+        />
+      </router-view>
     </div>
 
     <transition name="fade">
@@ -394,9 +31,22 @@ import { ref, onMounted, onUnmounted } from "vue";
 import HeaderBar from './components/HeaderBar.vue'
 
 const scrollContent = ref(null)
+const pageComponent = ref(null)
 
 const showTopTip = ref(false)
 const showBottomTip = ref(false)
+
+function openLoginModal() {
+  if (pageComponent.value && pageComponent.value.openLoginModal) {
+    pageComponent.value.openLoginModal()
+  }
+}
+
+function showProfileModal() {
+  if (pageComponent.value && pageComponent.value.showProfileModal) {
+    pageComponent.value.showProfileModal()
+  }
+}
 
 function setupScrollContainer() {
   const el = scrollContent.value
@@ -469,22 +119,21 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   const el = scrollContent.value
   el.addEventListener("wheel", handleWheel, { passive: false })
-  el.addEventListener("scroll", handleScroll) // 添加滚动事件监听
+  el.addEventListener("scroll", handleScroll)
   window.visualViewport?.addEventListener("resize", handleVisualResize)
 
   onUnmounted(() => {
     window.removeEventListener("resize", handleResize)
     el.removeEventListener("wheel", handleWheel, { passive: false })
-    el.removeEventListener("scroll", handleScroll) // 移除滚动事件监听
+    el.removeEventListener("scroll", handleScroll)
     window.visualViewport?.removeEventListener("resize", handleVisualResize)
   })
 })
 </script>
 
 <style>
-.app-background {
+.app-container {
   min-height: 100vh;
-  background: linear-gradient(to bottom, #012855, #0e59b8);
   font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
   overflow: hidden;
   position: relative;
@@ -496,37 +145,64 @@ onMounted(() => {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  /*添加 60px 的顶部内边距，为 HeaderBar 留出空间
-   *设置 box-sizing，确保 padding 不会增加 JS 设置的 height
-   */
-  padding-top: 60px;
   box-sizing: border-box;
 }
 
-/* 自定义细蓝色滚动条 */
+/* ========================================= */
+/* === 通用滚动条样式 - 由子页面背景决定 === */
+/* ========================================= */
+
+/* 首页样式 - 紫色渐变背景 */
+.home-page .scroll-content::-webkit-scrollbar-track {
+  background: rgba(39, 145, 251, 0.2);
+}
+
+.home-page .scroll-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(120, 180, 255, 0.6), rgba(153, 64, 250, 0.6));
+}
+
+.home-page .scroll-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(140, 200, 255, 0.8), rgba(173, 84, 255, 0.8));
+}
+
+.home-page .scroll-content {
+  scrollbar-color: rgba(120, 180, 255, 0.6) rgba(39, 145, 251, 0.2);
+}
+
+/* 个人页面样式 - 蓝色渐变背景 */
+.person-page .scroll-content::-webkit-scrollbar-track {
+  background: rgba(14, 89, 184, 0.2);
+}
+
+.person-page .scroll-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(30, 144, 255, 0.6), rgba(22, 177, 244, 0.6));
+}
+
+.person-page .scroll-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(77, 166, 255, 0.8), rgba(52, 197, 255, 0.8));
+}
+
+.person-page .scroll-content {
+  scrollbar-color: rgba(30, 144, 255, 0.6) rgba(14, 89, 184, 0.2);
+}
+
+/* 基础滚动条样式 */
 .scroll-content::-webkit-scrollbar {
-  width: 6px; /* 滚动条宽度 */
+  width: 6px;
 }
 
 .scroll-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1); /* 轨道背景 */
-  border-radius: 3px;
-}
-
-.scroll-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #1e90ff, #0066cc); /* 蓝色渐变 */
   border-radius: 3px;
   transition: background 0.3s ease;
 }
 
-.scroll-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #4da6ff, #0080ff); /* 悬停时更亮的蓝色 */
+.scroll-content::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  transition: background 0.3s ease;
 }
 
-/* Firefox 滚动条样式 */
 .scroll-content {
   scrollbar-width: thin;
-  scrollbar-color: #1e90ff rgba(255, 255, 255, 0.1);
 }
 
 .page-content {
@@ -546,10 +222,10 @@ onMounted(() => {
   border-radius: 8px;
   z-index: 2000;
   pointer-events: none;
-  white-space: nowrap; /* 防止文字换行 */
-  line-height: 1.2; /* 固定行高 */
-  height: auto; /* 自动高度 */
-  min-height: auto; /* 最小高度自动 */
+  white-space: nowrap;
+  line-height: 1.2;
+  height: auto;
+  min-height: auto;
 }
 
 .top-tip {
