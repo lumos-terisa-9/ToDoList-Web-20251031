@@ -14,7 +14,7 @@
               <input
                 type="text"
                 v-model="loginForm.identifier"
-                placeholder="用户名或邮箱"
+                placeholder="用户ID或邮箱"
                 required
               >
             </div>
@@ -33,6 +33,14 @@
 
           <!-- 注册表单 -->
           <form v-else @submit.prevent="handleRegister">
+            <div class="form-group">
+              <input
+                type="text"
+                v-model="registerForm.id"
+                placeholder="用户ID"
+                required
+              >
+            </div>
             <div class="form-group">
               <input
                 type="text"
@@ -121,6 +129,7 @@ const loginForm = ref({
 })
 
 const registerForm = ref({
+  id: '',
   username: '',
   email: '',
   password: '',
@@ -136,6 +145,7 @@ function close() {
 function resetForms() {
   loginForm.value = { identifier: '', password: '' }
   registerForm.value = {
+    id: '',
     username: '',
     email: '',
     password: '',
@@ -174,14 +184,14 @@ async function handleLogin() {
     if (response.ok) {
       // 登录成功
       const user = {
-        id: data.id || loginForm.value.identifier,
-        username: data.username || loginForm.value.identifier,
-        email: data.email || `${loginForm.value.identifier}@example.com`
+        id: loginForm.value.identifier,
+        username: loginForm.value.identifier, // 这里可以根据后端返回的数据调整
+        email: `${loginForm.value.identifier}@example.com` // 临时数据，实际应从后端获取
       }
 
       // 保存登录状态
       localStorage.setItem('currentUser', JSON.stringify(user))
-      localStorage.setItem('token', data.token || 'mock-token')
+      localStorage.setItem('token', data.token || 'mock-token') // 如果有token的话
 
       emit('login-success', user)
       close()
@@ -202,15 +212,9 @@ async function handleLogin() {
 
 async function handleRegister() {
   // 前端验证
-  if (!registerForm.value.username || !registerForm.value.email ||
+  if (!registerForm.value.id || !registerForm.value.username || !registerForm.value.email ||
     !registerForm.value.password || !registerForm.value.code) {
     alert('请填写所有必填字段')
-    return
-  }
-
-  // 验证用户名是否为数字
-  if (!/^\d+$/.test(registerForm.value.username)) {
-    alert('用户名必须为数字')
     return
   }
 
@@ -233,7 +237,7 @@ async function handleRegister() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        id: parseInt(registerForm.value.username), // 转换为数字类型
+        id: parseInt(registerForm.value.id),
         username: registerForm.value.username,
         email: registerForm.value.email,
         password: registerForm.value.password,
