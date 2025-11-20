@@ -32,7 +32,7 @@
                 <div class="avatar-section">
                   <div class="avatar-container">
                     <div class="avatar-wrapper">
-                      <img :src="userForm.avatar || '/default-avatar.png'" alt="头像" class="avatar">
+                      <img :src="userForm.avatar || '/空白头像.png'" alt="头像" class="avatar">
                       <div class="avatar-overlay">
                         <button class="avatar-edit-btn" @click="$refs.avatarInput.click()">
                           📷 更换
@@ -590,7 +590,7 @@ watch(() => props.user, (newUser) => {
   if (newUser) {
     userForm.value = {
       username: newUser.username || '',
-      avatar: newUser.avatar || ''
+      avatar: newUser.avatar || '/空白头像.png'
     }
   }
 }, { immediate: true })
@@ -600,7 +600,7 @@ watch(() => props.isVisible, (newVal) => {
   if (newVal && props.user) {
     userForm.value = {
       username: props.user.username || '',
-      avatar: props.user.avatar || ''
+      avatar: props.user.avatar || '/空白头像.png'
     }
     passwordForm.value = {
       newPassword: '',
@@ -786,8 +786,8 @@ watch(() => props.isVisible, (newVal) => {
 }
 
 .avatar {
-  width: 80px; /* 缩小头像 */
-  height: 80px;
+  width: 120px; /* 缩小头像 */
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #e9ecef; /* 缩小边框 */

@@ -116,7 +116,7 @@ onMounted(() => {
 <style scoped>
 .person-page {
   min-height: 100vh;
-  background: linear-gradient(to bottom, #0e59b8, #16b1f4);
+  background: linear-gradient(160deg, #f9ccfd -10%, #1076fb 95%);
   padding: 0;
   margin: 0;
   display: flex;
@@ -128,7 +128,7 @@ onMounted(() => {
   display: flex;
   flex: 1;
   align-items: stretch;
-  padding: 90px 120px 40px 120px;
+  padding: 90px 160px 60px 160px;
   gap: 20px;
   min-height: calc(100vh - 140px);
 }

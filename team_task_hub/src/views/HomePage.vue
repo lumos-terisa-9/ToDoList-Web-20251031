@@ -252,22 +252,26 @@ onUnmounted(() => {
   color: white;
   position: relative;
   z-index: 1;
+  padding: 0 40px; /* 页面两边留出空间 */
 }
 
 /* 广告轮播区域 */
 .ad-section {
-  padding: 120px 20px 70px 20px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 100px 20px 50px 20px;
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
+  border-radius: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .ad-carousel {
   position: relative;
-  max-width: 1300px;
+  max-width: 1100px; /* 缩小最大宽度 */
   margin: 0 auto;
   overflow: hidden;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-radius: 16px; /* 缩小圆角 */
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3); /* 缩小阴影 */
 }
 
 .ad-track {
@@ -278,7 +282,7 @@ onUnmounted(() => {
 .ad-slide {
   flex: 0 0 100%;
   position: relative;
-  height: 350px;
+  height: 280px; /* 缩小高度 */
 }
 
 .ad-image {
@@ -292,34 +296,34 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 30px;
+  padding: 20px; /* 缩小内边距 */
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
 }
 
 .ad-title {
-  font-size: 2.5rem;
+  font-size: 2rem; /* 缩小字体 */
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 8px; /* 缩小间距 */
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .ad-description {
-  font-size: 1.2rem;
+  font-size: 1rem; /* 缩小字体 */
   opacity: 0.9;
 }
 
 /* 轮播指示器 */
 .carousel-indicators {
   position: absolute;
-  bottom: 20px;
+  bottom: 14px; /* 缩小间距 */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 10px;
+  gap: 10px; /* 缩小间距 */
 }
 
 .indicator {
-  width: 12px;
+  width: 8px; /* 缩小尺寸 */
   height: 12px;
   border-radius: 50%;
   border: 2px solid white;
@@ -337,13 +341,13 @@ onUnmounted(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
+  width: 40px; /* 缩小尺寸 */
+  height: 40px;
   border: none;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   color: white;
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* 缩小字体 */
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
@@ -355,106 +359,107 @@ onUnmounted(() => {
 }
 
 .carousel-btn.prev {
-  left: 20px;
+  left: 15px; /* 缩小间距 */
 }
 
 .carousel-btn.next {
-  right: 20px;
+  right: 15px; /* 缩小间距 */
 }
 
 /* 内容区域 */
 .content-section {
-  max-width: 1200px;
+  max-width: 1000px; /* 缩小最大宽度 */
   margin: 0 auto;
-  padding: 60px 20px;
+  padding: 40px 0; /* 缩小上下内边距 */
 }
 
 .section-title {
-  font-size: 2.5rem;
+  font-size: 2rem; /* 缩小字体 */
   font-weight: 700;
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px; /* 缩小间距 */
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* 介绍区域 */
 .intro-section {
-  margin-bottom: 80px;
+  margin-bottom: 60px; /* 缩小间距 */
 }
 
 .intro-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 60px;
+  gap: 40px; /* 缩小间距 */
   align-items: start;
 }
 
 .intro-text p {
-  font-size: 1.2rem;
-  line-height: 1.8;
-  margin-bottom: 30px;
+  font-size: 1rem; /* 缩小字体 */
+  line-height: 1.6;
+  margin-bottom: 20px; /* 缩小间距 */
   opacity: 0.9;
 }
 
 .features {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 15px; /* 缩小间距 */
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 15px;
+  gap: 12px; /* 缩小间距 */
+  padding: 12px; /* 缩小内边距 */
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 8px; /* 缩小圆角 */
   backdrop-filter: blur(10px);
+  font-size: 0.9rem; /* 缩小字体 */
 }
 
 .feature-icon {
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* 缩小图标 */
 }
 
 .intro-stats {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 20px; /* 缩小间距 */
 }
 
 .stat-item {
   text-align: center;
-  padding: 20px;
+  padding: 15px; /* 缩小内边距 */
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
+  border-radius: 12px; /* 缩小圆角 */
   backdrop-filter: blur(10px);
 }
 
 .stat-number {
-  font-size: 2.5rem;
+  font-size: 2rem; /* 缩小字体 */
   font-weight: 700;
   margin-bottom: 5px;
 }
 
 .stat-label {
-  font-size: 1rem;
+  font-size: 0.9rem; /* 缩小字体 */
   opacity: 0.8;
 }
 
 /* FAQ区域 */
 .faq-section {
-  margin-bottom: 80px;
+  margin-bottom: 60px; /* 缩小间距 */
 }
 
 .faq-list {
-  max-width: 800px;
+  max-width: 700px; /* 缩小最大宽度 */
   margin: 0 auto;
 }
 
 .faq-item {
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
-  margin-bottom: 15px;
+  border-radius: 12px; /* 缩小圆角 */
+  margin-bottom: 12px; /* 缩小间距 */
   overflow: hidden;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
@@ -465,87 +470,93 @@ onUnmounted(() => {
 }
 
 .faq-question {
-  padding: 20px 25px;
+  padding: 16px 20px; /* 缩小内边距 */
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 1rem; /* 缩小字体 */
   font-weight: 600;
 }
 
 .faq-icon {
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* 缩小字体 */
   font-weight: 300;
 }
 
 .faq-answer {
-  padding: 0 25px 20px;
+  padding: 0 20px 16px; /* 缩小内边距 */
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .faq-answer p {
   line-height: 1.6;
   opacity: 0.9;
-  margin-top: 15px;
+  margin-top: 12px; /* 缩小间距 */
+  font-size: 0.9rem; /* 缩小字体 */
 }
 
 /* 快速开始区域 */
 .quick-steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* 缩小最小宽度 */
+  gap: 20px; /* 缩小间距 */
 }
 
 .step {
   text-align: center;
-  padding: 30px 20px;
+  padding: 20px 15px; /* 缩小内边距 */
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  border-radius: 16px; /* 缩小圆角 */
   backdrop-filter: blur(10px);
   transition: transform 0.3s ease;
 }
 
 .step:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px); /* 缩小悬停效果 */
 }
 
 .step-number {
-  width: 60px;
-  height: 60px;
+  width: 50px; /* 缩小尺寸 */
+  height: 50px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* 缩小字体 */
   font-weight: 700;
-  margin: 0 auto 20px;
+  margin: 0 auto 15px; /* 缩小间距 */
 }
 
 .step-content h3 {
-  font-size: 1.3rem;
-  margin-bottom: 10px;
+  font-size: 1.1rem; /* 缩小字体 */
+  margin-bottom: 8px; /* 缩小间距 */
 }
 
 .step-content p {
   opacity: 0.8;
-  line-height: 1.6;
+  line-height: 1.5;
+  font-size: 0.9rem; /* 缩小字体 */
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .home-page {
+    padding: 0 20px; /* 移动端两边留出更小空间 */
+  }
+
   .ad-title {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
 
   .ad-description {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .intro-content {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 30px;
   }
 
   .features {
@@ -557,9 +568,27 @@ onUnmounted(() => {
   }
 
   .carousel-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-page {
+    padding: 0 15px; /* 小屏幕两边留出更小空间 */
+  }
+
+  .ad-section {
+    padding: 80px 0 30px 0;
+  }
+
+  .content-section {
+    padding: 30px 0;
   }
 }
 </style>
