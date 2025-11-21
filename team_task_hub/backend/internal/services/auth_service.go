@@ -26,10 +26,11 @@ type AuthService struct {
 
 // JWTClaims JWT声明
 type JWTClaims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	JTI      string `json:"jti"`
+	UserID       uint   `json:"user_id"`
+	Username     string `json:"username"`
+	Email        string `json:"email"`
+	JTI          string `json:"jti"`
+	TokenVersion uint   `json:"token_version"`
 	jwt.RegisteredClaims
 }
 
@@ -117,7 +118,7 @@ func (s *AuthService) Register(req *RegisterRequest) (*RegisterResponse, error) 
 		return nil, errors.New("用户创建失败")
 	}
 
-	// 8. 标记验证码为已使用
+	// 标记验证码为已使用
 	_ = s.emailService.MarkCodeAsUsed(req.Email, req.Code)
 
 	return &RegisterResponse{
@@ -188,10 +189,11 @@ func (s *AuthService) generateJWT(user *models.User) (string, error) {
 	}
 
 	claims := &JWTClaims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		JTI:      jti,
+		UserID:       user.ID,
+		Username:     user.Username,
+		Email:        user.Email,
+		JTI:          jti,
+		TokenVersion: user.TokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -229,7 +231,27 @@ func (s *AuthService) ValidateJWT(tokenString string) (*JWTClaims, error) {
 		return nil, errors.New("令牌已失效")
 	}
 
+	if err := s.validateTokenVersion(claims); err != nil {
+		return nil, err
+	}
+
 	return claims, nil
+}
+
+// validateTokenVersion 验证令牌版本号
+func (s *AuthService) validateTokenVersion(claims *JWTClaims) error {
+	user, err := s.FindUserByIDWithCache(claims.UserID)
+	if err != nil {
+		return fmt.Errorf("用户信息验证失败: %v", err)
+	}
+	if user == nil {
+		return errors.New("用户不存在")
+	}
+	if claims.TokenVersion != user.TokenVersion {
+		return fmt.Errorf("令牌版本不匹配（令牌:%d ≠ 当前:%d）",
+			claims.TokenVersion, user.TokenVersion)
+	}
+	return nil
 }
 
 // LogoutResponse 登出响应
@@ -281,7 +303,7 @@ func (s *AuthService) findUserByIdentifier(identifier string) (*models.User, err
 
 	// 尝试解析为数字ID
 	if userID, err := strconv.ParseUint(identifier, 10, 32); err == nil {
-		return s.findUserByIDWithCache(uint(userID))
+		return s.FindUserByIDWithCache(uint(userID))
 	}
 
 	return nil, errors.New("用户不存在")
@@ -293,7 +315,7 @@ func (s *AuthService) findUserByEmailWithCache(email string) (*models.User, erro
 	userID, err := cache.GetUserIDByEmail(email)
 	if err == nil {
 		// 缓存命中，通过ID获取用户完整信息
-		return s.findUserByIDWithCache(userID)
+		return s.FindUserByIDWithCache(userID)
 	}
 
 	// 缓存未命中，查询数据库
@@ -313,8 +335,8 @@ func (s *AuthService) findUserByEmailWithCache(email string) (*models.User, erro
 	return user, nil
 }
 
-// findUserByIDWithCache 通过ID查找用户（带缓存）
-func (s *AuthService) findUserByIDWithCache(userID uint) (*models.User, error) {
+// FindUserByIDWithCache 通过ID查找用户（带缓存）
+func (s *AuthService) FindUserByIDWithCache(userID uint) (*models.User, error) {
 	// 从缓存获取完整用户信息
 	cachedUser, err := cache.GetUser(userID)
 	if err == nil && cachedUser != nil {

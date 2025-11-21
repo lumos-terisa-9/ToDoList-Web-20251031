@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strings"
 	"team_task_hub/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -148,32 +147,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Success 200 {object} services.LogoutResponse
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
-// @Router /auth/logout [post]
+// @Router /api/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// 从Authorization头获取令牌
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
+	tokenString, exists := c.Get("tokenString")
+	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "未提供认证令牌",
+			"error":   "上下文中未找到认证令牌",
 		})
 		return
 	}
 
-	// 解析Bearer Token的格式
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		c.JSON(http.StatusBadRequest, gin.H{
+	// 进行类型断言，确保 tokenString 是 string 类型
+	tokenStr, ok := tokenString.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "令牌格式错误，应为：Bearer <token>",
+			"error":   "令牌格式错误",
 		})
 		return
 	}
 
-	tokenString := parts[1] // 提取出真正的Token字符串
-
-	// 调用服务层使令牌失效
-	if err := h.authService.Logout(tokenString); err != nil {
+	// 调用服务层使令牌失效（加入黑名单）
+	if err := h.authService.Logout(tokenStr); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "登出失败",
@@ -182,8 +178,66 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// 返回成功响应
-	c.JSON(http.StatusOK, services.LogoutResponse{
-		Message: "登出成功",
-		Success: true,
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "登出成功",
+	})
+}
+
+// GetUserProfile 获取当前用户信息
+// @Summary 获取当前用户个人信息
+// @Description 获取当前已认证登录用户的详细信息，需要有效的JWT令牌。令牌需置于Header中：Authorization: Bearer <token>
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} map[string]interface{} "成功获取用户信息"
+// @Failure 400 {object} string "请求参数错误或用户标识缺失"
+// @Failure 401 {object} string "未提供有效的认证令牌"
+// @Failure 404 {object} string "用户不存在"
+// @Failure 500 {object} string "服务器内部错误或用户标识格式错误"
+// @Router /api/auth/me [get]
+func (h *AuthHandler) GetUserProfile(c *gin.Context) {
+	// 从中间件设置的上下文中获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求上下文中未找到用户标识",
+		})
+		return
+	}
+
+	// 类型断言：确保userID是uint类型
+	userIDUint, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "用户标识格式错误",
+		})
+		return
+	}
+
+	// 调用服务层，通过ID查询用户信息（复用您现有的缓存逻辑）
+	user, err := h.authService.FindUserByIDWithCache(userIDUint)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "用户不存在",
+		})
+		return
+	}
+
+	// 返回用户基本信息
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取用户信息成功",
+		"data": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"avatar_url": user.AvatarURL,
+		},
 	})
 }

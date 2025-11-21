@@ -26,5 +26,6 @@ func SetupAuthRoutes(r *gin.RouterGroup, db *gorm.DB, emailService *services.Ema
 	protected.Use(middleware.AuthMiddleware(authService))
 	{
 		protected.POST("/logout", authHandler.Logout)
+		protected.GET("/me", authHandler.GetUserProfile)
 	}
 }

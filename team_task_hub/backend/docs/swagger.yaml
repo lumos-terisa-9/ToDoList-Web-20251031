@@ -119,6 +119,82 @@ paths:
       summary: 用户登录
       tags:
       - 认证
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: '用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）'
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.LogoutResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 用户登出
+      tags:
+      - 认证
+  /api/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: '获取当前已认证登录用户的详细信息，需要有效的JWT令牌。令牌需置于Header中：Authorization: Bearer
+        <token>'
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功获取用户信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误或用户标识缺失
+          schema:
+            type: string
+        "401":
+          description: 未提供有效的认证令牌
+          schema:
+            type: string
+        "404":
+          description: 用户不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误或用户标识格式错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户个人信息
+      tags:
+      - 认证
   /api/auth/register:
     post:
       consumes:
@@ -213,38 +289,4 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
-  /auth/logout:
-    post:
-      consumes:
-      - application/json
-      description: '用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）'
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/services.LogoutResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: 用户登出
-      tags:
-      - 认证
 swagger: "2.0"

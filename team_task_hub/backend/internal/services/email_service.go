@@ -65,7 +65,7 @@ func (s *EmailService) SendVerificationCode(email, businessType string) error {
 		return fmt.Errorf("保存验证码失败: %v", err)
 	}
 
-	// 4. 发送邮件
+	// 发送邮件
 	if err := s.sendEmail(email, code, businessType); err != nil {
 		return fmt.Errorf("发送邮件失败: %v", err)
 	}
