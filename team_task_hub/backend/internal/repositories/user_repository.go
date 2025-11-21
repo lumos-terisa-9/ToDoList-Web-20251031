@@ -132,13 +132,27 @@ func (r *UserRepository) ExistsByUsername(username string) (bool, error) {
 func (r *UserRepository) UpdatePassword(userID uint, newPasswordHash string) error {
 	result := r.db.Model(&models.User{}).
 		Where("id = ?", userID).
-		Update("password_hash", newPasswordHash)
+		Updates(map[string]interface{}{
+			"password_hash": newPasswordHash,
+			"token_version": gorm.Expr("token_version+1"),
+		})
 
 	if result.Error != nil {
 		return fmt.Errorf("更新密码失败: %v", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("用户不存在")
+	}
+	return nil
+}
+
+// 更新用户名
+func (r *UserRepository) UpdateUserName(userID uint, newUserName string) error {
+	result := r.db.Model(&models.User{}).
+		Where("id=?", userID).
+		Update("username", newUserName)
+	if result.Error != nil {
+		return fmt.Errorf("更新用户名失败: %v", result.Error)
 	}
 	return nil
 }
@@ -153,6 +167,20 @@ func (r *UserRepository) UpdateAvatar(userID uint, avatarURL string) error {
 
 	if result.Error != nil {
 		return fmt.Errorf("更新头像失败: %v", result.Error)
+	}
+	return nil
+}
+
+// 更新用户邮箱
+func (r *UserRepository) UpdateEmail(userID uint, newEmail string) error {
+	result := r.db.Model(&models.User{}).
+		Where("id=?", userID).
+		Updates(map[string]interface{}{
+			"email":         newEmail,
+			"token_version": gorm.Expr("token_version+1"),
+		})
+	if result.Error != nil {
+		return fmt.Errorf("更新邮箱失败: %v", result.Error)
 	}
 	return nil
 }

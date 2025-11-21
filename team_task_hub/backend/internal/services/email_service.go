@@ -124,20 +124,39 @@ func (s *EmailService) sendEmail(to, code, businessType string) error {
 		m.SetHeader("From", s.config.User)
 	}
 
-	// 设置标题
-	var subject string
+	// 根据业务类型动态生成邮件内容
+	var subject, purposeText, actionText string
 	switch businessType {
 	case "register":
 		subject = "您的注册验证码 - Team Task Hub"
-	case "reset_password":
+		purposeText = "注册"
+		actionText = "完成注册"
+	case "change_password":
 		subject = "密码重置验证码 - Team Task Hub"
-	case "change_email":
+		purposeText = "重置密码"
+		actionText = "重置密码"
+	case "change_email_old":
 		subject = "邮箱修改验证码 - Team Task Hub"
+		purposeText = "修改邮箱"
+		actionText = "验证原邮箱"
+	case "change_email_new":
+		subject = "邮箱修改验证码 - Team Task Hub"
+		purposeText = "修改邮箱"
+		actionText = "验证新邮箱"
 	case "join_org":
 		subject = "加入组织验证码 - Team Task Hub"
+		purposeText = "加入组织"
+		actionText = "完成加入"
+	case "login":
+		subject = "登录验证码 - Team Task Hub"
+		purposeText = "登录"
+		actionText = "完成登录"
 	default:
 		subject = "您的验证码 - Team Task Hub"
+		purposeText = "安全"
+		actionText = "完成验证"
 	}
+
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 
@@ -206,11 +225,11 @@ func (s *EmailService) sendEmail(to, code, businessType string) error {
             <div class="container">
                 <div class="header">
                     <h1>Team Task Hub</h1>
-                    <p>您的注册验证码</p>
+                    <p>您的%s验证码</p>
                 </div>
                 <div class="content">
                     <p>您好！</p>
-                    <p>您正在注册 Team Task Hub 账户，请使用以下验证码完成注册：</p>
+                    <p>您正在%s Team Task Hub 账户，请使用以下验证码%s：</p>
                     
                     <div class="code">%s</div>
                     
@@ -232,22 +251,25 @@ func (s *EmailService) sendEmail(to, code, businessType string) error {
             </div>
         </body>
         </html>
-    `, code)
+    `, purposeText, purposeText, actionText, code)
 
 	// 设置邮件内容为HTML格式
 	m.SetBody("text/html", htmlContent)
 
+	// 生成纯文本邮件内容
 	textContent := fmt.Sprintf(`
-        欢迎注册 Team Task Hub！
+        欢迎使用 Team Task Hub！
         
-        您的验证码是：%s
+        您正在%s，请使用以下验证码完成验证：
+        
+        验证码：%s
         
         此验证码5分钟内有效，请勿泄露给他人。
         
         如果这不是您发起的请求，请忽略此邮件。
         
         Team Task Hub 团队
-    `, code)
+    `, purposeText, code)
 	m.AddAlternative("text/plain", textContent)
 
 	// 创建SMTP拨号器并发送邮件

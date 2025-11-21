@@ -27,5 +27,9 @@ func SetupAuthRoutes(r *gin.RouterGroup, db *gorm.DB, emailService *services.Ema
 	{
 		protected.POST("/logout", authHandler.Logout)
 		protected.GET("/me", authHandler.GetUserProfile)
+		protected.PUT("/change_userName", authHandler.UpdateUserName)
+		protected.PUT("/change_avatar", authHandler.UpdateAvatar)
+		protected.PUT("/change_email", authHandler.UpdateEmail)
+		protected.PUT("/change_password", authHandler.UpdatePassword)
 	}
 }

@@ -93,7 +93,7 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	router.SetupRoutes(r, db)
 	//邮件路由
 	router.SetupEmailRoutes(r.Group("/api"), db, emailConfig)
-	//用户认证路由（注册登录）
+	//用户认证路由（注册登录，个人信息）
 	router.SetupAuthRoutes(r.Group("/api"), db, emailService, cfg.JWTSecret)
 }
 

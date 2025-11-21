@@ -355,3 +355,89 @@ func (s *AuthService) FindUserByIDWithCache(userID uint) (*models.User, error) {
 	cache.SetUser(user, 30*time.Minute)
 	return user, nil
 }
+
+// 更新用户名
+func (s *AuthService) UpdateUserName(userID uint, newUserName string) error {
+	// 基础验证
+	newUserName = strings.TrimSpace(newUserName)
+	if len(newUserName) == 0 {
+		return fmt.Errorf("用户名不能为空")
+	}
+
+	// 检查新用户名是否已被其他用户占用
+	exists, err := s.userRepo.ExistsByUsername(newUserName)
+	if err != nil {
+		return fmt.Errorf("检查用户名失败: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("用户名 '%s' 已被占用", newUserName)
+	}
+
+	// 执行更新
+	if err := s.userRepo.UpdateUserName(userID, newUserName); err != nil {
+		return fmt.Errorf("更新用户名失败: %v", err)
+	}
+	cache.DeleteUser(userID)
+	return nil
+}
+
+// 更新头像
+func (s *AuthService) UpdateAvatar(userID uint, newAvatar string) error {
+	if err := s.userRepo.UpdateAvatar(userID, newAvatar); err != nil {
+		return errors.New("更新头像失败")
+	}
+	cache.DeleteUser(userID)
+	return nil
+}
+
+// 更新用户邮箱
+func (s *AuthService) UpdateEmail(userID uint, oldEmail, newEmail, oldEmailCode, newEmailCode string) error {
+	//验证旧邮箱
+	if isValidOld, _, err := s.emailService.VerifyCode(oldEmail, oldEmailCode, "change_email_old"); err != nil {
+		log.Printf("验证旧邮箱验证码时发生错误: %v", err)
+		return fmt.Errorf("验证服务暂时不可用")
+	} else if !isValidOld {
+		return fmt.Errorf("旧邮箱验证码错误或已过期")
+	}
+	//验证新邮箱
+	if isValidNew, _, err := s.emailService.VerifyCode(newEmail, newEmailCode, "change_email_new"); err != nil {
+		log.Printf("验证新邮箱验证码时发生错误: %v", err)
+		return fmt.Errorf("验证服务暂时不可用")
+	} else if !isValidNew {
+		return fmt.Errorf("新邮箱验证码错误或已过期")
+	}
+
+	if err := s.userRepo.UpdateEmail(userID, newEmail); err != nil {
+		return fmt.Errorf("更新用户邮箱失败")
+	}
+	cache.DeleteUser(userID)
+	return nil
+}
+
+// 更新用户密码
+func (s *AuthService) UpdatePassword(userID uint, email, code, newPassword string) error {
+	//验证密码强度
+	if !s.isValidPassword(newPassword) {
+		return fmt.Errorf("密码必须包含字母和数字，长度6-20位")
+	}
+
+	//验证验证码
+	if isValid, _, err := s.emailService.VerifyCode(email, code, "change_password"); err != nil {
+		return fmt.Errorf("验证服务暂时不可用")
+	} else if !isValid {
+		return fmt.Errorf("更改密码验证码无效或者过期")
+	}
+
+	//密码加密
+	passwordHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("密码加密失败")
+	}
+
+	//更新密码
+	if err := s.userRepo.UpdatePassword(userID, passwordHash); err != nil {
+		return fmt.Errorf("更新密码失败")
+	}
+	cache.DeleteUser(userID)
+	return nil
+}

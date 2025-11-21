@@ -81,6 +81,230 @@
                 }
             }
         },
+        "/api/auth/change_avatar": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "更新用户头像",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "example": "{\"avatar_url\": \"https://example.com/new-avatar.jpg\"}",
+                        "description": "更新头像参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功\" example({\"success\": true, \"message\": \"头像更新成功\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/change_email": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "更新用户邮箱",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "example": "{\"new_email\": \"new@example.com\", \"old_email_code\": \"123456\", \"new_email_code\": \"654321\"}",
+                        "description": "更新邮箱参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功\" example({\"success\": true, \"message\": \"邮箱更新成功\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "邮箱冲突\" example({\"success\": false, \"message\": \"邮箱已被使用\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/change_password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "更新用户密码",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "example": "{\"email\": \"user@example.com\", \"code\": \"123456\", \"new_password\": \"newpassword123\"}",
+                        "description": "更新密码参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功\" example({\"success\": true, \"message\": \"密码更新成功\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/change_userName": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证"
+                ],
+                "summary": "更新用户名",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "example": "{\"username\": \"新用户名\"}",
+                        "description": "更新用户名参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功\" example({\"success\": true, \"message\": \"用户名更新成功\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "用户名冲突\" example({\"success\": false, \"message\": \"用户名已被占用\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "consumes": [
@@ -209,10 +433,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "成功获取用户信息",
+                        "description": "获取成功\" example({\"success\": true, \"message\": \"获取用户信息成功\", \"data\": {\"id\": 1001, \"username\": \"张三\", \"email\": \"user@example.com\", \"avatar_url\": \"https://example.com/avatar.jpg\"}})",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -290,7 +513,7 @@
         },
         "/api/email/send-verification": {
             "post": {
-                "description": "向指定邮箱发送6位数字验证码，支持多种业务场景",
+                "description": "向指定邮箱发送6位数字验证码，支持多种业务场景，\"register\",\"change_email_old\",\"change_email_new\",\"change_password\"",
                 "consumes": [
                     "application/json"
                 ],
