@@ -363,7 +363,7 @@ func (h *AuthHandler) UpdateEmail(c *gin.Context) {
 	currentEmail, _ := c.Get("email")
 	currentEmailStr := currentEmail.(string)
 
-	if err := h.authService.UpdateEmail(userIDUint, currentEmailStr, req.NewEmail, req.OldEmailCode, req.NewEmailCode); err != nil {
+	if newToken, err := h.authService.UpdateEmail(userIDUint, currentEmailStr, req.NewEmail, req.OldEmailCode, req.NewEmailCode); err != nil {
 		statusCode := http.StatusInternalServerError
 		if err.Error() == "邮箱已被使用" {
 			statusCode = http.StatusConflict
@@ -373,12 +373,14 @@ func (h *AuthHandler) UpdateEmail(c *gin.Context) {
 			"message": err.Error(),
 		})
 		return
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "邮箱更新成功",
+			"token":   newToken,
+		})
+		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "邮箱更新成功",
-	})
 }
 
 // UpdatePassword 更新密码
