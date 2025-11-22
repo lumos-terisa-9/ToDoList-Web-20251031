@@ -140,6 +140,7 @@ const registerForm = ref({
 function close() {
   emit('close')
   resetForms()
+  isLogin.value = true
 }
 
 function resetForms() {
@@ -168,6 +169,7 @@ async function handleLogin() {
   loading.value = true
 
   try {
+    console.log('开始登录请求...')
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: {
@@ -179,21 +181,56 @@ async function handleLogin() {
       })
     })
 
+    console.log('登录响应状态:', response.status)
     const data = await response.json()
+    console.log('登录响应数据:', data)
 
     if (response.ok) {
-      // 登录成功
-      const user = {
-        id: loginForm.value.identifier,
-        username: loginForm.value.identifier, // 这里可以根据后端返回的数据调整
-        email: `${loginForm.value.identifier}@example.com` // 临时数据，实际应从后端获取
+      // 登录成功 - 处理不同类型的响应格式
+      let token = ''
+      let userData = {}
+
+      // 根据不同的响应格式提取token和用户数据
+      if (typeof data === 'string') {
+        // 如果后端直接返回token字符串
+        token = data
+        userData = {
+          id: loginForm.value.identifier,
+          username: loginForm.value.identifier
+        }
+      } else if (data.token) {
+        // 如果返回的是对象且包含token字段
+        token = data.token
+        userData = data.user || {
+          id: loginForm.value.identifier,
+          username: loginForm.value.identifier
+        }
+      } else if (data.data && data.data.token) {
+        // 如果返回的是 { data: { token: ... } } 格式
+        token = data.data.token
+        userData = data.data.user || {
+          id: loginForm.value.identifier,
+          username: loginForm.value.identifier
+        }
+      } else {
+        // 其他格式，尝试直接使用data作为token
+        token = JSON.stringify(data)
+        userData = {
+          id: loginForm.value.identifier,
+          username: loginForm.value.identifier
+        }
       }
 
-      // 保存登录状态
-      localStorage.setItem('currentUser', JSON.stringify(user))
-      localStorage.setItem('token', data.token || 'mock-token') // 如果有token的话
+      console.log('提取到的token:', token)
+      console.log('用户数据:', userData)
 
-      emit('login-success', user)
+      // 保存令牌到本地存储
+      localStorage.setItem('token', token)
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+
+      console.log('令牌已保存到localStorage')
+
+      emit('login-success', userData)
       close()
 
       // 跳转到个人页面

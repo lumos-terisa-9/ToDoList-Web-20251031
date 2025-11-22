@@ -32,7 +32,7 @@
                 <div class="avatar-section">
                   <div class="avatar-container">
                     <div class="avatar-wrapper">
-                      <img :src="userForm.avatar || '/空白头像.png'" alt="头像" class="avatar">
+                      <img :src="currentUser?.avatar_url || '/空白头像.png'" alt="头像" class="avatar">
                       <div class="avatar-overlay">
                         <button class="avatar-edit-btn" @click="$refs.avatarInput.click()">
                           📷 更换
@@ -260,14 +260,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
 const props = defineProps({
-  isVisible: Boolean,
-  user: Object
+  isVisible: Boolean
 })
 
 const emit = defineEmits(['close', 'update-user', 'logout'])
@@ -278,6 +277,7 @@ const oldEmailCooldown = ref(0)
 const newEmailCooldown = ref(0)
 const avatarInput = ref(null)
 const activeMenu = ref('profile')
+const currentUser = ref(null)
 
 // API 基础URL
 const API_BASE = 'http://localhost:8080/api'
@@ -292,8 +292,7 @@ const menuItems = ref([
 
 // 表单数据
 const userForm = ref({
-  username: '',
-  avatar: ''
+  username: ''
 })
 
 const passwordForm = ref({
@@ -308,12 +307,432 @@ const emailForm = ref({
   newVerificationCode: ''
 })
 
+// 获取当前用户信息
+async function fetchCurrentUser() {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+  console.log('从localStorage获取原始token:', token)
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      console.log('解析token数据:', tokenData)
+
+      // 提取纯token字符串
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+      console.log('提取后的纯token:', token)
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return null
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return null
+  }
+
+  try {
+    console.log('开始调用 /auth/me 接口...')
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('接口响应状态:', response.status)
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('接口返回数据:', result)
+      return result.data || result
+    } else {
+      console.error('获取用户信息失败:', response.status)
+      const errorText = await response.text()
+      console.error('错误详情:', errorText)
+      return null
+    }
+  } catch (error) {
+    console.error('获取用户信息请求失败:', error)
+    return null
+  }
+}
+
+// 用户登出
+async function logoutUser() {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return false
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return false
+  }
+
+  try {
+    console.log('开始登出，使用token:', token)
+    const response = await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('登出响应状态:', response.status)
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('登出成功:', result)
+      return true
+    } else {
+      console.error('登出失败:', response.status)
+      const errorText = await response.text()
+      console.error('登出错误详情:', errorText)
+      return false
+    }
+  } catch (error) {
+    console.error('登出请求失败:', error)
+    return false
+  }
+}
+
+async function handleLogout() {
+  loading.value = true
+
+  try {
+    // 调用后端登出接口
+    const logoutSuccess = await logoutUser()
+
+    // 无论登出是否成功，都清除本地存储的登录状态
+    localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
+    currentUser.value = null
+
+    emit('logout')
+    close()
+
+    // 跳转到首页
+    router.push('/')
+
+    if (logoutSuccess) {
+      alert('已成功退出登录')
+    } else {
+      alert('已退出登录（服务器登出失败，但已清除本地状态）')
+    }
+
+  } catch (error) {
+    console.error('登出过程中发生错误:', error)
+    // 发生错误时仍然清除本地状态
+    localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
+    currentUser.value = null
+
+    emit('logout')
+    close()
+
+    router.push('/')
+    alert('已退出登录')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 更新用户名
+async function updateUsername(username) {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return { success: false, message: '令牌格式错误' }
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return { success: false, message: '未找到认证令牌' }
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/change_userName`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username })
+    })
+
+    const result = await response.json()
+    console.log('更新用户名响应:', result)
+
+    if (response.ok) {
+      return { success: true, data: result }
+    } else {
+      return { success: false, message: result.message || '用户名更新失败' }
+    }
+  } catch (error) {
+    console.error('更新用户名请求失败:', error)
+    return { success: false, message: '网络请求失败' }
+  }
+}
+
+// 更新头像
+async function updateAvatar(avatarUrl) {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return { success: false, message: '令牌格式错误' }
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return { success: false, message: '未找到认证令牌' }
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/change_avatar`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ avatar_url: avatarUrl })
+    })
+
+    const result = await response.json()
+    console.log('更新头像响应:', result)
+
+    if (response.ok) {
+      return { success: true, data: result }
+    } else {
+      return { success: false, message: result.message || '头像更新失败' }
+    }
+  } catch (error) {
+    console.error('更新头像请求失败:', error)
+    return { success: false, message: '网络请求失败' }
+  }
+}
+
+// 更新密码
+async function updatePassword(passwordData) {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return { success: false, message: '令牌格式错误' }
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return { success: false, message: '未找到认证令牌' }
+  }
+
+  try {
+    const requestData = {
+      email: currentUser.value?.email,
+      code: passwordData.verificationCode,
+      new_password: passwordData.newPassword
+    }
+
+    console.log('密码修改请求数据:', JSON.stringify(requestData, null, 2))
+
+    const response = await fetch(`${API_BASE}/auth/change_password`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    })
+
+    console.log('密码修改响应状态:', response.status)
+
+    let result
+    const responseText = await response.text()
+
+    if (responseText) {
+      try {
+        result = JSON.parse(responseText)
+        console.log('更新密码响应:', result)
+        // eslint-disable-next-line no-unused-vars
+      } catch (parseError) {
+        console.log('密码修改响应不是JSON格式:', responseText)
+        result = { rawResponse: responseText }
+      }
+    } else {
+      console.log('密码修改响应为空')
+      result = {}
+    }
+
+    if (response.ok) {
+      return { success: true, data: result }
+    } else {
+      const errorMessage = result.message || result.error || '密码修改失败'
+      console.error('密码修改失败详情:', result)
+      return {
+        success: false,
+        message: errorMessage,
+        status: response.status
+      }
+    }
+  } catch (error) {
+    console.error('修改密码请求失败:', error)
+    return { success: false, message: '网络请求失败' }
+  }
+}
+
+// 更新邮箱
+async function updateEmail(emailData) {
+  // 从本地浏览器获取token
+  let token = localStorage.getItem('token')
+
+  // 如果token是JSON字符串，解析它
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return { success: false, message: '令牌格式错误' }
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return { success: false, message: '未找到认证令牌' }
+  }
+
+  try {
+    const requestData = {
+      new_email: emailData.newEmail,
+      old_email_code: emailData.oldVerificationCode,
+      new_email_code: emailData.newVerificationCode
+    }
+
+    console.log('邮箱修改请求数据:', JSON.stringify(requestData, null, 2))
+
+    const response = await fetch(`${API_BASE}/auth/change_email`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    })
+
+    console.log('邮箱修改响应状态:', response.status)
+
+    let result
+    const responseText = await response.text()
+
+    if (responseText) {
+      try {
+        result = JSON.parse(responseText)
+        console.log('更新邮箱响应:', result)
+        // eslint-disable-next-line no-unused-vars
+      } catch (parseError) {
+        console.log('邮箱修改响应不是JSON格式:', responseText)
+        result = {rawResponse: responseText}
+      }
+    } else {
+      console.log('邮箱修改响应为空')
+      result = {}
+    }
+
+    if (response.ok) {
+      return { success: true, data: result }
+    } else {
+      const errorMessage = result.message || result.error || '邮箱修改失败'
+      console.error('邮箱修改失败详情:', result)
+      return {
+        success: false,
+        message: errorMessage,
+        status: response.status
+      }
+    }
+  } catch (error) {
+    console.error('修改邮箱请求失败:', error)
+    return { success: false, message: '网络请求失败' }
+  }
+}
+
 // 掩码显示函数
 function maskUserId(userId) {
   if (!userId) return '****'
   const str = userId.toString()
-  if (str.length <= 4) return str + '****'
-  return str.slice(0, 4) + '****'
+  if (str.length <= 4) return str
+  return str.slice(0, -4) + '****'
 }
 
 function maskEmail(email) {
@@ -321,35 +740,85 @@ function maskEmail(email) {
   const [name, domain] = email.split('@')
   if (!name || !domain) return '***@***.***'
 
-  const maskedName = name.length > 2
-    ? name.charAt(0) + '*'.repeat(Math.min(3, name.length - 2)) + name.charAt(name.length - 1)
-    : '*'.repeat(name.length)
+  if (name.length <= 6) {
+    return '*'.repeat(name.length) + '@' + domain
+  }
 
-  return `${maskedName}@${domain}`
+  return '*'.repeat(6) + name.slice(6) + '@' + domain
 }
 
 function close() {
   emit('close')
 }
 
-function handleAvatarUpload(event) {
+async function handleAvatarUpload(event) {
   const file = event.target.files[0]
-  if (file) {
-    // 验证文件类型和大小
-    if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件')
-      return
-    }
-    if (file.size > 2 * 1024 * 1024) { // 2MB
-      alert('图片大小不能超过2MB')
-      return
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert('图片大小不能超过2MB')
+    return
+  }
+
+  loading.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    // 从本地浏览器获取token用于上传
+    let token = localStorage.getItem('token')
+
+    // 如果token是JSON字符串，解析它
+    if (token && token.startsWith('{')) {
+      try {
+        const tokenData = JSON.parse(token)
+        if (tokenData.data && tokenData.data.access_token) {
+          token = tokenData.data.access_token
+        } else if (tokenData.access_token) {
+          token = tokenData.access_token
+        } else if (tokenData.token) {
+          token = tokenData.token
+        }
+      } catch (error) {
+        console.error('解析token失败:', error)
+        alert('令牌格式错误')
+        return
+      }
     }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      userForm.value.avatar = e.target.result
+    const uploadResponse = await fetch(`${API_BASE}/upload/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (uploadResponse.ok) {
+      const uploadResult = await uploadResponse.json()
+      const avatarUrl = uploadResult.data?.url
+
+      const result = await updateAvatar(avatarUrl)
+
+      if (result.success) {
+        await initUserData()
+        alert('头像更新成功！')
+      } else {
+        alert(result.message)
+      }
+    } else {
+      alert('头像上传失败')
     }
-    reader.readAsDataURL(file)
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    alert('头像上传失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -362,28 +831,14 @@ async function saveProfile() {
   loading.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const result = await updateUsername(userForm.value.username)
 
-    // 模拟保存用户信息
-    const updatedUser = {
-      ...props.user,
-      username: userForm.value.username,
-      avatar: userForm.value.avatar
+    if (result.success) {
+      await initUserData()
+      alert('用户名更新成功！')
+    } else {
+      alert(result.message)
     }
-
-    // 更新本地存储
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser))
-
-    // 更新用户列表中的信息
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    const userIndex = users.findIndex(u => u.id === props.user.id)
-    if (userIndex !== -1) {
-      users[userIndex] = updatedUser
-      localStorage.setItem('users', JSON.stringify(users))
-    }
-
-    emit('update-user', updatedUser)
-    alert('个人信息更新成功！')
 
   } catch (error) {
     alert('保存失败：' + error.message)
@@ -411,34 +866,32 @@ async function changePassword() {
   loading.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const result = await updatePassword(passwordForm.value)
 
-    // 更新密码
-    const updatedUser = {
-      ...props.user,
-      password: passwordForm.value.newPassword
+    if (result.success) {
+      // 重置表单
+      passwordForm.value = {
+        newPassword: '',
+        confirmPassword: '',
+        verificationCode: ''
+      }
+
+      alert('密码修改成功！请重新登录')
+
+      // 清除本地存储的登录状态
+      localStorage.removeItem('token')
+      localStorage.removeItem('currentUser')
+      currentUser.value = null
+
+      emit('logout')
+      close()
+
+      // 跳转到首页
+      router.push('/')
+
+    } else {
+      alert(result.message)
     }
-
-    // 更新本地存储
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser))
-
-    // 更新用户列表中的密码
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    const userIndex = users.findIndex(u => u.id === props.user.id)
-    if (userIndex !== -1) {
-      users[userIndex].password = passwordForm.value.newPassword
-      localStorage.setItem('users', JSON.stringify(users))
-    }
-
-    // 重置表单
-    passwordForm.value = {
-      newPassword: '',
-      confirmPassword: '',
-      verificationCode: ''
-    }
-
-    alert('密码修改成功！')
-    activeMenu.value = 'profile'
 
   } catch (error) {
     alert('密码修改失败：' + error.message)
@@ -458,45 +911,25 @@ async function changeEmail() {
     return
   }
 
-  // 验证验证码（模拟）
-  const storedCode = '123456' // 模拟验证码
-  if (emailForm.value.oldVerificationCode !== storedCode || emailForm.value.newVerificationCode !== storedCode) {
-    alert('验证码错误')
-    return
-  }
-
   loading.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const result = await updateEmail(emailForm.value)
 
-    // 更新邮箱
-    const updatedUser = {
-      ...props.user,
-      email: emailForm.value.newEmail
+    if (result.success) {
+      await initUserData()
+
+      emailForm.value = {
+        newEmail: '',
+        oldVerificationCode: '',
+        newVerificationCode: ''
+      }
+
+      alert('邮箱修改成功！')
+      activeMenu.value = 'profile'
+    } else {
+      alert(result.message)
     }
-
-    // 更新本地存储
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser))
-
-    // 更新用户列表中的邮箱
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    const userIndex = users.findIndex(u => u.id === props.user.id)
-    if (userIndex !== -1) {
-      users[userIndex].email = emailForm.value.newEmail
-      localStorage.setItem('users', JSON.stringify(users))
-    }
-
-    // 重置表单
-    emailForm.value = {
-      newEmail: '',
-      oldVerificationCode: '',
-      newVerificationCode: ''
-    }
-
-    emit('update-user', updatedUser)
-    alert('邮箱修改成功！')
-    activeMenu.value = 'profile'
 
   } catch (error) {
     alert('邮箱修改失败：' + error.message)
@@ -508,6 +941,8 @@ async function changeEmail() {
 // 发送验证码函数
 async function sendVerificationCode(email, business, cooldownRef) {
   try {
+    console.log(`发送验证码: email=${email}, business=${business}`)
+
     const response = await fetch(`${API_BASE}/email/send-verification`, {
       method: 'POST',
       headers: {
@@ -524,7 +959,6 @@ async function sendVerificationCode(email, business, cooldownRef) {
     if (response.ok) {
       alert('验证码已发送到您的邮箱，请查收')
 
-      // 开始倒计时
       cooldownRef.value = 60
       const timer = setInterval(() => {
         cooldownRef.value--
@@ -542,19 +976,21 @@ async function sendVerificationCode(email, business, cooldownRef) {
 }
 
 async function sendPasswordVerificationCode() {
-  if (!props.user?.email) {
+  if (!currentUser.value?.email) {
     alert('未找到邮箱信息')
     return
   }
-  await sendVerificationCode(props.user.email, 'reset_password', passwordCooldown)
+  // 修改密码使用 'change_password' 业务
+  await sendVerificationCode(currentUser.value.email, 'change_password', passwordCooldown)
 }
 
 async function sendOldEmailVerificationCode() {
-  if (!props.user?.email) {
+  if (!currentUser.value?.email) {
     alert('未找到邮箱信息')
     return
   }
-  await sendVerificationCode(props.user.email, 'change_email', oldEmailCooldown)
+  // 原邮箱验证使用 'change_email_old' 业务
+  await sendVerificationCode(currentUser.value.email, 'change_email_old', oldEmailCooldown)
 }
 
 async function sendNewEmailVerificationCode() {
@@ -563,45 +999,42 @@ async function sendNewEmailVerificationCode() {
     return
   }
 
-  // 邮箱格式验证
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(emailForm.value.newEmail)) {
     alert('请输入有效的邮箱地址')
     return
   }
 
-  await sendVerificationCode(emailForm.value.newEmail, 'change_email', newEmailCooldown)
+  // 新邮箱验证使用 'change_email_new' 业务
+  await sendVerificationCode(emailForm.value.newEmail, 'change_email_new', newEmailCooldown)
 }
 
-function handleLogout() {
-  // 清除登录状态
-  localStorage.removeItem('currentUser')
-  localStorage.removeItem('token')
-  emit('logout')
-  close()
-
-  // 跳转到首页
-  router.push('/')
-  alert('已退出登录')
-}
-
-// 监听用户数据变化
-watch(() => props.user, (newUser) => {
-  if (newUser) {
-    userForm.value = {
-      username: newUser.username || '',
-      avatar: newUser.avatar || '/空白头像.png'
+// 初始化用户数据
+async function initUserData() {
+  // 检查本地是否有token
+  const token = localStorage.getItem('token')
+  if (token) {
+    console.log('找到token，开始获取用户信息...')
+    const userData = await fetchCurrentUser()
+    if (userData) {
+      currentUser.value = userData
+      userForm.value.username = userData.username || ''
+      console.log('初始化用户数据成功:', userData)
+      emit('update-user', userData)
+    } else {
+      console.error('获取用户数据失败')
     }
+  } else {
+    console.error('未找到token，用户未登录')
   }
-}, { immediate: true })
+}
 
 // 监听模态框显示状态
-watch(() => props.isVisible, (newVal) => {
-  if (newVal && props.user) {
-    userForm.value = {
-      username: props.user.username || '',
-      avatar: props.user.avatar || '/空白头像.png'
-    }
+watch(() => props.isVisible, async (newVal) => {
+  console.log('个人信息模态框状态变化:', newVal)
+  if (newVal) {
+    await initUserData()
+
     passwordForm.value = {
       newPassword: '',
       confirmPassword: '',
@@ -616,6 +1049,13 @@ watch(() => props.isVisible, (newVal) => {
     oldEmailCooldown.value = 0
     newEmailCooldown.value = 0
     activeMenu.value = 'profile'
+  }
+})
+
+// 组件挂载时初始化
+onMounted(() => {
+  if (props.isVisible) {
+    initUserData()
   }
 })
 </script>
