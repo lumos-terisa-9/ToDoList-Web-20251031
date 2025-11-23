@@ -608,9 +608,634 @@
                     }
                 }
             }
+        },
+        "/api/todos/UpdateTodos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "为有生育能力的过期待办自动创建下一代实例",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "续期过期待办",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "续期成功\" example({\"success\": true, \"message\": \"续期完成: 成功 3, 跳过 1, 失败 0\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RenewTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"续期操作失败: 数据库连接错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据待办的具体信息将其状态改为已取消",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "取消待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "取消待办请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelTodoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "取消成功\" example({\"success\": true, \"message\": \"待办已成功取消\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"取消待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/cancel-with-children": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据待办标题和描述取消父待办及其所有子待办（使用事务确保一致性）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "取消待办及其所有子待办",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "取消待办请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelTodoAndChildrenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "取消成功\" example({\"success\": true, \"message\": \"待办及其子待办已成功取消\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"请求参数格式错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "未找到待办\" example({\"success\": false, \"message\": \"未找到匹配的待办事项\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"取消操作失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/coming-endTodos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询在未来七天内会结束的所有待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取未来七天会结束的待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"todos\": [...], \"count\": 3})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TodoListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询未来七天结束的待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/coming-startTodos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询在未来七天内会开始的所有待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取未来七天会开始的待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"todos\": [...], \"count\": 5})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TodoListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询未来七天开始的待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据待办的具体信息将其状态改为已完成，并自动记录完成时间",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "完成待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "完成待办请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CompleteTodoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "完成成功\" example({\"success\": true, \"message\": \"待办已完成于 2024-01-15 14:30\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CompleteTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"标题和内容不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"完成待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/completed_todo": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询在指定日期完成的所有待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取指定日期完成的待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-15\"",
+                        "description": "查询日期",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"date\": \"2024-01-15\", \"todos\": [...], \"count\": 3})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CompletedTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"日期参数不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询已完成待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/createTodo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建普通待办或重复待办事项。重复待办会根据规则及ChildDates生成子实例。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "创建待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "创建待办请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.CreateTodoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "创建成功\" example({\"success\": true, \"message\": \"待办创建成功\", \"created_at\": \"2024-01-15T10:30:00Z\"})",
+                        "schema": {
+                            "$ref": "#/definitions/services.CreateTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"标题不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"创建待办失败: 数据库连接错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/todayTodos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询与今天时间段有交集的所有未完成待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取今日待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"todos\": [...], \"count\": 5})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TodoListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询今日待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "handlers.CancelTodoAndChildrenRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "项目进度讨论"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "每周团队会议"
+                }
+            }
+        },
+        "handlers.CancelTodoRequest": {
+            "type": "object",
+            "required": [
+                "end_time",
+                "start_time",
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "项目进度讨论"
+                },
+                "end_time": {
+                    "type": "string",
+                    "example": "2024-01-15T15:00:00Z"
+                },
+                "start_time": {
+                    "type": "string",
+                    "example": "2024-01-15T14:00:00Z"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "团队会议"
+                }
+            }
+        },
+        "handlers.CancelTodoResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.CompleteTodoRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "end_time",
+                "start_time",
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "项目进度讨论"
+                },
+                "end_time": {
+                    "type": "string",
+                    "example": "2024-01-15T15:00:00Z"
+                },
+                "start_time": {
+                    "type": "string",
+                    "example": "2024-01-15T14:00:00Z"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "团队会议"
+                }
+            }
+        },
+        "handlers.CompleteTodoResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.CompletedTodoResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "todos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Todo"
+                    }
+                }
+            }
+        },
+        "handlers.RenewTodoResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.SendVerificationCodeRequest": {
             "type": "object",
             "required": [
@@ -625,6 +1250,26 @@
                 "email": {
                     "description": "邮箱地址",
                     "type": "string"
+                }
+            }
+        },
+        "handlers.TodoListResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "todos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Todo"
+                    }
                 }
             }
         },
@@ -647,6 +1292,141 @@
                 "email": {
                     "description": "邮箱地址",
                     "type": "string"
+                }
+            }
+        },
+        "models.Todo": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "creator_organ_id": {
+                    "type": "integer"
+                },
+                "creator_user_id": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "has_children": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "parent_id": {
+                    "description": "父子关系",
+                    "type": "integer"
+                },
+                "repeat_end_date": {
+                    "type": "string"
+                },
+                "repeat_interval": {
+                    "type": "integer"
+                },
+                "repeat_type": {
+                    "description": "重复规则",
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "urgency": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.CreateTodoRequest": {
+            "type": "object",
+            "required": [
+                "end_time",
+                "start_time",
+                "title"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "default": "personal",
+                    "enum": [
+                        "work",
+                        "study",
+                        "fun",
+                        "personal"
+                    ]
+                },
+                "child_dates": {
+                    "description": "子待办日期数组",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "repeat_end_date": {
+                    "type": "string"
+                },
+                "repeat_interval": {
+                    "type": "integer",
+                    "default": 1
+                },
+                "repeat_type": {
+                    "description": "重复规则",
+                    "type": "string",
+                    "default": "none",
+                    "enum": [
+                        "none",
+                        "daily",
+                        "weekly",
+                        "monthly"
+                    ]
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "urgency": {
+                    "type": "string",
+                    "default": "medium",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ]
+                }
+            }
+        },
+        "services.CreateTodoResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
