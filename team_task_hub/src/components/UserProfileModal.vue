@@ -282,15 +282,6 @@ const currentUser = ref(null)
 // API 基础URL
 const API_BASE = 'http://localhost:8080/api'
 
-// GitHub 配置 - 请替换为您的实际信息
-const GITHUB_CONFIG = {
-  username: 'snow04c', // 替换为您的GitHub用户名
-  repo: 'ToDoList-Web-20251031', // 替换为您的仓库名
-  token: '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', // 替换为您的GitHub Personal Access Token
-  branch: 'main',
-  folder: 'images/avatar'
-}
-
 // 菜单项配置
 const menuItems = ref([
   { key: 'profile', text: '基本信息', icon: '👤' },
@@ -381,28 +372,6 @@ async function fetchCurrentUser() {
     console.error('获取用户信息请求失败:', error)
     return null
   }
-}
-
-// 确保头像URL使用GitHub URL
-function ensureGitHubAvatarUrl(avatarUrl) {
-  if (!avatarUrl) return getDefaultAvatarUrl()
-
-  // 如果已经是GitHub URL，直接返回
-  if (avatarUrl.includes('github.io') || avatarUrl.includes('githubusercontent.com')) {
-    return avatarUrl
-  }
-
-  // 如果是本地URL或无效URL，返回默认头像
-  if (avatarUrl.startsWith('blob:') || avatarUrl.startsWith('data:') || !avatarUrl.startsWith('http')) {
-    return getDefaultAvatarUrl()
-  }
-
-  return avatarUrl
-}
-
-// 获取默认头像URL（使用GitHub上的默认头像）
-function getDefaultAvatarUrl() {
-  return `https://${GITHUB_CONFIG.username}.github.io/${GITHUB_CONFIG.repo}/images/avatar/default-avatar.png`
 }
 
 // 用户登出
@@ -552,6 +521,38 @@ async function updateUsername(username) {
   }
 }
 
+// GitHub 配置 - 请替换为您的实际信息
+const GITHUB_CONFIG = {
+  username: 'snow04c', // 替换为您的GitHub用户名
+  repo: 'snow04c.github.io', // 替换为您的仓库名
+  token: '', // 替换为您的GitHub Personal Access Token
+  branch: 'main',
+  folder: 'avatars'
+}
+
+// 获取默认头像URL - 修正为GitHub Pages格式
+function getDefaultAvatarUrl() {
+  // GitHub Pages仓库的特殊URL格式：https://用户名.github.io/文件夹/文件名
+  return `https://${GITHUB_CONFIG.username}.github.io/${GITHUB_CONFIG.folder}/default-avatar.png`
+}
+
+// 确保头像URL使用GitHub URL
+function ensureGitHubAvatarUrl(avatarUrl) {
+  if (!avatarUrl) return getDefaultAvatarUrl()
+
+  // 如果已经是GitHub URL，直接返回
+  if (avatarUrl.includes('github.io') || avatarUrl.includes('githubusercontent.com')) {
+    return avatarUrl
+  }
+
+  // 如果是本地URL或无效URL，返回默认头像
+  if (avatarUrl.startsWith('blob:') || avatarUrl.startsWith('data:') || !avatarUrl.startsWith('http')) {
+    return getDefaultAvatarUrl()
+  }
+
+  return avatarUrl
+}
+
 // 更新头像
 async function updateAvatar(avatarUrl) {
   // 从本地浏览器获取token
@@ -603,7 +604,7 @@ async function updateAvatar(avatarUrl) {
   }
 }
 
-// 使用GitHub API上传头像
+// 使用GitHub API上传头像 - 修正URL返回
 async function uploadToGitHub(file) {
   try {
     // 将文件转换为Base64
@@ -611,10 +612,10 @@ async function uploadToGitHub(file) {
     const cleanBase64 = base64Data.split(',')[1] // 移除data:image/jpeg;base64,前缀
 
     // 生成唯一的文件名
-    const fileExtension = file.type.split('/')[1]
+    const fileExtension = file.type.split('/')[1] || 'png'
     const fileName = `avatar_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`
 
-    // 构造API URL
+    // 构造API URL - GitHub Pages仓库的特殊路径
     const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.folder}/${fileName}`
 
     // 请求数据
@@ -625,26 +626,38 @@ async function uploadToGitHub(file) {
     }
 
     console.log('开始上传到GitHub:', apiUrl)
+    console.log('文件信息:', {
+      name: fileName,
+      size: file.size,
+      type: file.type
+    })
 
     const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `token ${GITHUB_CONFIG.token}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
       },
       body: JSON.stringify(requestData)
     })
 
+    console.log('GitHub API响应状态:', response.status)
+
     if (!response.ok) {
       const errorData = await response.json()
+      console.error('GitHub API错误详情:', errorData)
       throw new Error(`GitHub上传失败: ${errorData.message}`)
     }
 
     const result = await response.json()
     console.log('GitHub上传成功:', result)
 
-    // 返回GitHub Pages访问URL
-    return `https://${GITHUB_CONFIG.username}.github.io/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.folder}/${fileName}`
+    // 重要：GitHub Pages仓库的特殊URL格式
+    // 对于 snow04c.github.io 仓库，访问URL是：https://snow04c.github.io/avatars/文件名
+    // 不需要在URL中包含仓库名，因为这是用户页面仓库
+    return `https://${GITHUB_CONFIG.username}.github.io/${GITHUB_CONFIG.folder}/${fileName}`
+
   } catch (error) {
     console.error('GitHub上传错误:', error)
     throw error
@@ -659,6 +672,73 @@ function fileToBase64(file) {
     reader.onerror = (error) => reject(error)
     reader.readAsDataURL(file)
   })
+}
+
+// 修改后的头像上传函数 - 添加更多错误处理和调试信息
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // 验证文件类型和大小
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件（JPEG、PNG、GIF等）')
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    alert('图片大小不能超过2MB')
+    return
+  }
+
+  loading.value = true
+
+  try {
+    // 显示本地预览
+    const previewUrl = URL.createObjectURL(file)
+    console.log('本地预览URL:', previewUrl)
+
+    // 1. 上传到GitHub获取公网URL
+    console.log('开始上传头像到GitHub...')
+    const githubAvatarUrl = await uploadToGitHub(file)
+    console.log('GitHub头像URL:', githubAvatarUrl)
+
+    // 2. 使用GitHub URL更新头像到后端
+    const result = await updateAvatar(githubAvatarUrl)
+
+    if (result.success) {
+      // 更新本地用户数据
+      await initUserData()
+      alert('头像更新成功！待系统审核')
+
+      // 释放预览URL
+      URL.revokeObjectURL(previewUrl)
+    } else {
+      alert(result.message || '头像更新失败')
+    }
+
+  } catch (error) {
+    console.error('头像上传失败:', error)
+
+    // 详细的错误信息
+    let errorMessage = '头像上传失败'
+    if (error.message.includes('GitHub上传失败')) {
+      if (error.message.includes('bad credentials')) {
+        errorMessage = 'GitHub Token无效，请检查token权限'
+      } else if (error.message.includes('not found')) {
+        errorMessage = 'GitHub仓库不存在或无权访问'
+      } else {
+        errorMessage = `GitHub上传失败: ${error.message}`
+      }
+    } else if (error.message.includes('Network Error')) {
+      errorMessage = '网络连接失败，请检查网络设置'
+    }
+
+    alert(errorMessage)
+  } finally {
+    loading.value = false
+    // 清空文件输入
+    event.target.value = ''
+  }
 }
 
 // 更新密码
@@ -873,48 +953,6 @@ function maskEmail(email) {
 
 function close() {
   emit('close')
-}
-
-// 修改后的头像上传函数
-async function handleAvatarUpload(event) {
-  const file = event.target.files[0]
-  if (!file) return
-
-  if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件')
-    return
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    alert('图片大小不能超过2MB')
-    return
-  }
-
-  loading.value = true
-
-  try {
-    // 1. 上传到GitHub获取公网URL
-    console.log('开始上传头像到GitHub...')
-    const githubAvatarUrl = await uploadToGitHub(file)
-    console.log('GitHub头像URL:', githubAvatarUrl)
-
-    // 2. 使用GitHub URL更新头像
-    const result = await updateAvatar(githubAvatarUrl)
-
-    if (result.success) {
-      await initUserData()
-      alert('头像更新成功！')
-    } else {
-      alert(result.message)
-    }
-
-  } catch (error) {
-    console.error('头像上传失败:', error)
-    alert('头像上传失败：' + error.message)
-  } finally {
-    loading.value = false
-    // 清空文件输入
-    event.target.value = ''
-  }
 }
 
 async function saveProfile() {
