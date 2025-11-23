@@ -525,7 +525,7 @@ async function updateUsername(username) {
 const GITHUB_CONFIG = {
   username: 'snow04c', // 替换为您的GitHub用户名
   repo: 'snow04c.github.io', // 替换为您的仓库名
-  token: '', // 替换为您的GitHub Personal Access Token
+  token: '',
   branch: 'main',
   folder: 'avatars'
 }
