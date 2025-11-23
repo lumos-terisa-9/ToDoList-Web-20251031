@@ -56,7 +56,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 其他情况正常导航，
+  // 其他情况正常导航，，
   next()
 })
 

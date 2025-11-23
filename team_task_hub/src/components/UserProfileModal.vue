@@ -523,6 +523,11 @@ async function updateUsername(username) {
 
 // GitHub 配置 - 请替换为您的实际信息
 const GITHUB_CONFIG = {
+  username: 'snow04c', // 替换为您的GitHub用户名
+  repo: 'snow04c.github.io', // 替换为您的仓库名
+  token: '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',
+  branch: 'main',
+  folder: 'avatars'
 }
 
 // 获取默认头像URL - 修正为GitHub Pages格式
