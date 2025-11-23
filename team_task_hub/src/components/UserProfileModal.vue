@@ -436,7 +436,7 @@ async function handleLogout() {
     // 调用后端登出接口
     const logoutSuccess = await logoutUser()
 
-    // 无论登出是否成功，都清除本地存储的登录状态
+    // 无论登出是否成功，都清除本地存储的登录状态，
     localStorage.removeItem('token')
     localStorage.removeItem('currentUser')
     currentUser.value = null
