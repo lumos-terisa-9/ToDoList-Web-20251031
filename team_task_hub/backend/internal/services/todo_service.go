@@ -21,11 +21,11 @@ func NewTodoService(todoRepo *repositories.TodoRepository) *TodoService {
 }
 
 // CancelTodoAndChildren 在服务层中使用事务取消待办及其子待办
-func (s *TodoService) CancelTodoAndChildren(userID uint, title, description string) error {
+func (s *TodoService) CancelTodoAndChildren(userID uint, title, description string, createAt time.Time) error {
 	// 事务封装
 	return s.todoRepo.Transaction(func(tx *gorm.DB) error {
 		// 查找根待办
-		rootTodo, err := s.todoRepo.FindRootTodoByDetailsWithTx(tx, userID, title, description)
+		rootTodo, err := s.todoRepo.FindRootTodoByDetailsWithTx(tx, userID, title, description, createAt)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("未找到匹配的待办事项: 用户ID=%d, 标题='%s'", userID, title)
@@ -243,6 +243,7 @@ func (s *TodoService) generateChildTodos(parent *models.Todo, req *CreateTodoReq
 			Description:    parent.Description,
 			StartTime:      childStartTime,
 			EndTime:        childEndTime,
+			CreatedAt:      parent.CreatedAt,
 			Urgency:        parent.Urgency,
 			Category:       parent.Category,
 			Status:         "pending",
@@ -336,7 +337,7 @@ func (s *TodoService) RenewExpiredChildTodos(userID uint) (bool, string) {
 	return true, message
 }
 
-// createNextGeneration 为待办创建下一代实例（保持不变）
+// createNextGeneration 为待办创建下一代实例
 func (s *TodoService) createNextGeneration(parent *models.Todo) (string, *models.Todo, error) {
 	// 使用CalculateNextInstance计算下一个实例时间
 	nextStart, exists := parent.CalculateNextInstance(time.Now())
@@ -354,6 +355,7 @@ func (s *TodoService) createNextGeneration(parent *models.Todo) (string, *models
 		Description:    parent.Description,
 		StartTime:      nextStart,
 		EndTime:        nextEnd,
+		CreatedAt:      parent.CreatedAt,
 		Status:         "pending",
 		Urgency:        parent.Urgency,
 		Category:       parent.Category,
@@ -461,7 +463,7 @@ func (s *TodoService) GetTodosStartingInNext7Days(userID uint) ([]models.Todo, e
 func (s *TodoService) GetTodosEndingInNext7Days(userID uint) ([]models.Todo, error) {
 	// 获取当前时间和未来七天的时间范围
 	now := time.Now()
-	startTime := now
+	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	endTime := now.AddDate(0, 0, 7)
 
 	todos, err := s.todoRepo.FindTodosEndingInRange(userID, startTime, endTime)

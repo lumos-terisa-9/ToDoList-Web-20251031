@@ -207,14 +207,15 @@ func (r *TodoRepository) BatchUpdateChildrenStatus(parentID uint, oldStatus, new
 	return result.RowsAffected, result.Error
 }
 
-// FindRootTodoByDetailsWithTx 支持事务的版本：根据用户ID、标题、内容查找根待办事项
-func (r *TodoRepository) FindRootTodoByDetailsWithTx(tx *gorm.DB, userID uint, title, description string) (*models.Todo, error) {
+// FindRootTodoByDetailsWithTx 支持事务的版本：根据用户ID、标题、内容，创建时间查找根待办事项
+func (r *TodoRepository) FindRootTodoByDetailsWithTx(tx *gorm.DB, userID uint, title, description string, creatAt time.Time) (*models.Todo, error) {
 	var todo models.Todo
 	// 使用传入的 tx 进行查询，而非 r.db
 	err := tx.
 		Where("creator_user_id = ?", userID).
 		Where("title = ?", title).
 		Where("description = ?", description).
+		Where("created_at=?", creatAt).
 		Where("parent_id = 0").
 		First(&todo).Error
 
@@ -297,96 +298,12 @@ func (r *TodoRepository) FindByStatus(userID uint, status string) ([]models.Todo
 	return todos, err
 }
 
-// 重复任务相关查询
-func (r *TodoRepository) FindNextPendingInstance(parentID uint) (*models.Todo, error) {
-	var instance models.Todo
-	now := time.Now()
-
-	err := r.db.
-		Where("parent_id = ? AND status = 'pending' AND start_time > ?", parentID, now).
-		Where("completed_at = '1970-01-01'").
-		Order("start_time ASC").
-		First(&instance).Error
-
-	if err != nil {
-		return nil, err
-	}
-	return &instance, nil
-}
-
-func (r *TodoRepository) ExistsPendingInstanceAfter(parentID uint, afterTime time.Time) (bool, error) {
-	var count int64
-	err := r.db.Model(&models.Todo{}).
-		Where("parent_id = ? AND status = 'pending' AND start_time > ?", parentID, afterTime).
-		Where("completed_at = '1970-01-01'").
-		Count(&count).Error
-	return count > 0, err
-}
-
-func (r *TodoRepository) FindOverdueInstances(userID uint) ([]models.Todo, error) {
-	var todos []models.Todo
-	now := time.Now()
-
-	err := r.db.
-		Where("creator_user_id = ?", userID).
-		Where("status = 'pending'").
-		Where("has_children = false").
-		Where("end_time < ?", now). // 已过结束时间
-		Where("completed_at = '1970-01-01'").
-		Order("end_time ASC").
-		Find(&todos).Error
-
-	return todos, err
-}
-
 // 批量操作
 func (r *TodoRepository) BatchCreate(todos []models.Todo) error {
 	if len(todos) == 0 {
 		return nil
 	}
 	return r.db.CreateInBatches(todos, 100).Error
-}
-
-// 统计方法
-func (r *TodoRepository) CountByUserAndStatus(userID uint) (active, upcoming, completed, overdue int64, err error) {
-	now := time.Now()
-
-	// 活跃实例统计
-	err = r.db.Model(&models.Todo{}).
-		Where("creator_user_id = ? AND status = 'pending' AND has_children = false", userID).
-		Where("start_time <= ? AND end_time >= ?", now, now).
-		Where("completed_at = '1970-01-01'").
-		Count(&active).Error
-	if err != nil {
-		return
-	}
-
-	// 即将到来统计
-	err = r.db.Model(&models.Todo{}).
-		Where("creator_user_id = ? AND status = 'pending' AND has_children = false", userID).
-		Where("start_time > ?", now).
-		Where("completed_at = '1970-01-01'").
-		Count(&upcoming).Error
-	if err != nil {
-		return
-	}
-
-	// 已完成统计
-	err = r.db.Model(&models.Todo{}).
-		Where("creator_user_id = ? AND status = 'completed'", userID).
-		Count(&completed).Error
-	if err != nil {
-		return
-	}
-
-	// 过期统计
-	err = r.db.Model(&models.Todo{}).
-		Where("creator_user_id = ? AND status = 'pending' AND has_children = false", userID).
-		Where("end_time < ?", now).
-		Where("completed_at = '1970-01-01'").
-		Count(&overdue).Error
-
-	return
 }
 
 // 事务支持
