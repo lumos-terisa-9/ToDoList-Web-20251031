@@ -4,6 +4,7 @@
       <MonthCalendar
         v-model="picked"
         @select="onSelect"
+        @date-click="handleDateClick"
         class="calendar-pane"
       />
 
@@ -15,15 +16,25 @@
         <ToDoList
           :id="picked.toDateString()"
           :title="'个人待办'"
+          :date="picked"
+          :display-mode="currentDisplayMode"
           @request-modal="handleNewTaskRequest"
+          @refresh-todos="loadTodayTodos"
+          @edit-task="handleEditTask"
           class="todo-list-item"
+          ref="personalTodoList"
         />
         <!-- 组织待办 -->
         <ToDoList
           :id="'org-' + picked.toDateString()"
           :title="'组织待办'"
+          :date="picked"
+          :display-mode="currentDisplayMode"
           :show-input="false"
+          @refresh-todos="loadTodayTodos"
+          @edit-task="handleEditTask"
           class="todo-list-item"
+          ref="orgTodoList"
         />
       </div>
     </div>
@@ -37,16 +48,29 @@
       @logout="handleLogout"
     />
 
+    <!-- 创建待办模态框 -->
     <NewTaskModal
       :isVisible="showModal"
+      :date="picked"
       @close="showModal = false"
       @save="handleSaveTask"
+    />
+
+    <!-- 编辑待办模态框 - 在全局显示 -->
+    <NewTaskModal
+      :isVisible="showEditModal"
+      :date="picked"
+      :isEditMode="true"
+      :editTodoData="selectedTask"
+      @close="showEditModal = false"
+      @update="handleTaskUpdate"
+      @complete="handleTaskComplete"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import MonthCalendar from '@/components/MonthCalendar.vue'
 import ToDoList from '@/components/ToDoList.vue'
@@ -57,44 +81,230 @@ const router = useRouter()
 
 const picked = ref(new Date())
 const showModal = ref(false)
+const showEditModal = ref(false) // 添加编辑模态框状态
 const showProfileModal = ref(false)
 const currentUser = ref(null)
+const personalTodoList = ref(null)
+const orgTodoList = ref(null)
+const selectedTask = ref(null) // 添加选中的任务
+
+const API_BASE = 'http://localhost:8080/api'
+// 在 PersonPage.vue 的 script 部分添加数据状态
+const todayTasks = ref([]);
+const completedTasks = ref([]);
+const currentDisplayMode = ref('today'); // 'today' 或 'completed'
+
+// 修改 handleDateClick 函数
+function handleDateClick(dateInfo) {
+  console.log('日期点击:', dateInfo);
+
+  if (dateInfo.isToday) {
+    // 点击今天，调用第二个接口：获取今日待办
+    currentDisplayMode.value = 'today';
+    loadTodayTodos();
+  } else {
+    // 点击其他日期，调用第一个接口：获取指定日期完成的待办
+    currentDisplayMode.value = 'completed';
+    loadCompletedTodos(dateInfo.date);
+  }
+}
+
+// 修改 loadTodayTodos 函数
+async function loadTodayTodos() {
+  const token = getToken()
+  if (!token) return
+
+  try {
+    console.log('开始调用今日待办接口...')
+    const response = await fetch(`${API_BASE}/todos/todayTodos`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('今日待办:', result)
+
+      if (result.success && result.todos) {
+        todayTasks.value = result.todos;
+        // 通知子组件刷新数据
+        updateTodoListData();
+      }
+    } else {
+      console.error('获取今日待办失败:', response.status)
+    }
+  } catch (error) {
+    console.error('调用今日待办接口失败:', error)
+  }
+}
+
+// 修改 loadCompletedTodos 函数
+async function loadCompletedTodos(date) {
+  const token = getToken()
+  if (!token) return
+
+  try {
+    // 格式化日期为 YYYY-MM-DD
+    const dateStr = date.toISOString().split('T')[0];
+    console.log('开始调用已完成待办接口，日期:', dateStr);
+
+    const response = await fetch(`${API_BASE}/todos/completed_todo?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('已完成待办:', result)
+      if (result.success && result.todos) {
+        completedTasks.value = result.todos;
+        // 通知子组件刷新数据
+        updateTodoListData();
+      }
+    } else {
+      console.error('获取已完成待办失败:', response.status)
+    }
+  } catch (error) {
+    console.error('调用已完成待办接口失败:', error)
+  }
+}
+
+// 新增函数：更新ToDoList数据
+function updateTodoListData() {
+  let tasksToDisplay = [];
+
+  if (currentDisplayMode.value === 'today') {
+    tasksToDisplay = todayTasks.value;
+  } else {
+    tasksToDisplay = completedTasks.value;
+  }
+
+  // 通知子组件更新数据
+  if (personalTodoList.value) {
+    personalTodoList.value.updateTasks(tasksToDisplay);
+  }
+  if (orgTodoList.value) {
+    orgTodoList.value.updateTasks(tasksToDisplay);
+  }
+}
+// 获取token的通用函数
+function getToken() {
+  let token = localStorage.getItem('token')
+  console.log('从localStorage获取原始token:', token)
+
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      console.log('解析token数据:', tokenData)
+
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+      console.log('提取后的纯token:', token)
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return null
+    }
+  }
+
+  if (!token) {
+    console.error('未找到认证令牌')
+    return null
+  }
+  return token
+}
 
 // 检查登录状态
-function checkAuth() {
-  const userData = localStorage.getItem('currentUser')
-  if (!userData) {
-    // 未登录，跳转到首页
+async function checkAuth() {
+  const token = getToken()
+  if (!token) {
     router.push('/')
     return
   }
-  currentUser.value = JSON.parse(userData)
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const userData = await response.json()
+      currentUser.value = userData
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+
+      // 加载今日待办
+      await loadTodayTodos()
+    } else {
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('验证用户失败:', error)
+    router.push('/')
+  }
 }
 
 function onSelect(d) {
   picked.value = d
   console.log('选中日期：', d)
+  // 日期变化时重新加载待办
+  loadTodayTodos()
 }
 
 function handleNewTaskRequest() {
   showModal.value = true
 }
 
-function handleSaveTask(taskData) {
+// 处理编辑任务
+function handleEditTask(task) {
+  console.log('处理编辑任务:', task)
+  selectedTask.value = task
+  showEditModal.value = true
+}
+
+// 处理任务更新
+function handleTaskUpdate() {
+  showEditModal.value = false
+  loadTodayTodos() // 重新加载任务
+}
+
+// 处理任务完成
+function handleTaskComplete() {
+  showEditModal.value = false
+  loadTodayTodos() // 重新加载任务
+}
+
+async function handleSaveTask(taskData) {
   console.log('准备保存任务到日期:', picked.value, taskData)
   showModal.value = false
+
+  // 保存后刷新待办列表
+  await nextTick()
+  await loadTodayTodos()
 }
 
 function handleUserUpdate(updatedUser) {
   currentUser.value = updatedUser
-  // 更新本地存储
   localStorage.setItem('currentUser', JSON.stringify(updatedUser))
 }
 
 function handleLogout() {
-  // 清除用户数据
   currentUser.value = null
-  // 跳转到首页
+  localStorage.removeItem('token')
+  localStorage.removeItem('currentUser')
   router.push('/')
 }
 

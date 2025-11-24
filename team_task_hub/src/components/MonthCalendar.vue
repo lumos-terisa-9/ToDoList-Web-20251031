@@ -49,7 +49,7 @@ import { ref, computed } from 'vue'
 const props = defineProps({
   modelValue: { type: Date, required: true }
 })
-const emit = defineEmits(['update:modelValue', 'select'])
+const emit = defineEmits(['update:modelValue', 'select', 'date-click'])
 
 // 脚本 (Logic) 部分与你原来的一致，无需修改
 const current = ref(new Date(props.modelValue))
@@ -111,8 +111,16 @@ function isSelected(date) {
 }
 function selectDate(date) {
   if (isNaN(date)) return
+
+  // 更新选中的日期
   emit('update:modelValue', date)
   emit('select', date)
+
+  // 触发日期点击事件，传递日期和是否是今天的标志
+  emit('date-click', {
+    date: date,
+    isToday: isToday(date)
+  })
 }
 </script>
 
