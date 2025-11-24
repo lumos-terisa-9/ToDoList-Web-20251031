@@ -34,7 +34,7 @@ type VerifyCodeRequest struct {
 
 // SendVerificationCode 发送邮箱验证码
 // @Summary 发送邮箱验证码
-// @Description 向指定邮箱发送6位数字验证码，支持多种业务场景
+// @Description 向指定邮箱发送6位数字验证码，支持多种业务场景，"register","change_email_old","change_email_new","change_password"
 // @Tags 邮箱验证
 // @Accept json
 // @Produce json
@@ -57,22 +57,7 @@ func (h *EmailHandler) SendVerificationCode(c *gin.Context) {
 		return
 	}
 
-	// 2. 验证业务类型
-	validBusinessTypes := map[string]bool{
-		"register":       true,
-		"reset_password": true,
-		"change_email":   true,
-		"join_org":       true,
-	}
-	if !validBusinessTypes[req.Business] {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "不支持的业务类型，请使用: register, reset_password, change_email, join_org",
-		})
-		return
-	}
-
-	// 3. 调用EmailService发送验证码
+	// 调用EmailService发送验证码
 	if err := h.emailService.SendVerificationCode(req.Email, req.Business); err != nil {
 		errorMessage := err.Error()
 		statusCode := http.StatusBadRequest

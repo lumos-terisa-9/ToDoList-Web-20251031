@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strings"
 	"team_task_hub/backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -148,32 +147,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Success 200 {object} services.LogoutResponse
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
-// @Router /auth/logout [post]
+// @Router /api/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// 从Authorization头获取令牌
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
+	tokenString, exists := c.Get("tokenString")
+	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "未提供认证令牌",
+			"error":   "上下文中未找到认证令牌",
 		})
 		return
 	}
 
-	// 解析Bearer Token的格式
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		c.JSON(http.StatusBadRequest, gin.H{
+	// 进行类型断言，确保 tokenString 是 string 类型
+	tokenStr, ok := tokenString.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "令牌格式错误，应为：Bearer <token>",
+			"error":   "令牌格式错误",
 		})
 		return
 	}
 
-	tokenString := parts[1] // 提取出真正的Token字符串
-
-	// 调用服务层使令牌失效
-	if err := h.authService.Logout(tokenString); err != nil {
+	// 调用服务层使令牌失效（加入黑名单）
+	if err := h.authService.Logout(tokenStr); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "登出失败",
@@ -182,8 +178,250 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// 返回成功响应
-	c.JSON(http.StatusOK, services.LogoutResponse{
-		Message: "登出成功",
-		Success: true,
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "登出成功",
+	})
+}
+
+// GetUserProfile 获取当前用户信息
+// @Summary 获取当前用户个人信息
+// @Description 获取当前已认证登录用户的详细信息，需要有效的JWT令牌。令牌需置于Header中：Authorization: Bearer <token>
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} string "获取成功" example({"success": true, "message": "获取用户信息成功", "data": {"id": 1001, "username": "张三", "email": "user@example.com", "avatar_url": "https://example.com/avatar.jpg"}})
+// @Failure 400 {object} string "请求参数错误或用户标识缺失"
+// @Failure 401 {object} string "未提供有效的认证令牌"
+// @Failure 404 {object} string "用户不存在"
+// @Failure 500 {object} string "服务器内部错误或用户标识格式错误"
+// @Router /api/auth/me [get]
+func (h *AuthHandler) GetUserProfile(c *gin.Context) {
+	// 从中间件设置的上下文中获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求上下文中未找到用户标识",
+		})
+		return
+	}
+
+	// 类型断言：确保userID是uint类型
+	userIDUint, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "用户标识格式错误",
+		})
+		return
+	}
+
+	// 调用服务层，通过ID查询用户信息（复用您现有的缓存逻辑）
+	user, err := h.authService.FindUserByIDWithCache(userIDUint)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "用户不存在",
+		})
+		return
+	}
+
+	// 返回用户基本信息
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取用户信息成功",
+		"data": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"avatar_url": user.AvatarURL,
+		},
+	})
+}
+
+// UpdateUserName 更新用户名
+// @Summary 更新用户名
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body string true "更新用户名参数" example({"username": "新用户名"})
+// @Success 200 {object} string "更新成功" example({"success": true, "message": "用户名更新成功"})
+// @Failure 400 {object} string "参数错误" example({"success": false, "message": "请求参数格式错误"})
+// @Failure 409 {object} string "用户名冲突" example({"success": false, "message": "用户名已被占用"})
+// @Router /api/auth/change_userName [put]
+func (h *AuthHandler) UpdateUserName(c *gin.Context) {
+	var req struct {
+		Username string `json:"username"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+	userIDUint := userID.(uint)
+
+	if err := h.authService.UpdateUserName(userIDUint, req.Username); err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "用户名已被占用" {
+			statusCode = http.StatusConflict
+		}
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "用户名更新成功",
+	})
+}
+
+// UpdateAvatar 更新头像
+// @Summary 更新用户头像
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body string true "更新头像参数" example({"avatar_url": "https://example.com/new-avatar.jpg"})
+// @Success 200 {object} string "更新成功" example({"success": true, "message": "头像更新成功"})
+// @Failure 400 {object} string "参数错误" example({"success": false, "message": "请求参数格式错误"})
+// @Router /api/auth/change_avatar [put]
+func (h *AuthHandler) UpdateAvatar(c *gin.Context) {
+	var req struct {
+		AvatarURL string `json:"avatar_url" binding:"required,url"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+	userIDUint := userID.(uint)
+
+	if err := h.authService.UpdateAvatar(userIDUint, req.AvatarURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "头像更新成功",
+	})
+}
+
+// UpdateEmail 更新邮箱
+// @Summary 更新用户邮箱
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body string true "更新邮箱参数" example({"new_email": "new@example.com", "old_email_code": "123456", "new_email_code": "654321"})
+// @Success 200 {object} string "更新成功" example({"success": true, "message": "邮箱更新成功"})
+// @Failure 400 {object} string "参数错误" example({"success": false, "message": "请求参数格式错误"})
+// @Failure 409 {object} string "邮箱冲突" example({"success": false, "message": "邮箱已被使用"})
+// @Router /api/auth/change_email [put]
+func (h *AuthHandler) UpdateEmail(c *gin.Context) {
+	var req struct {
+		NewEmail     string `json:"new_email" binding:"required,email"`
+		OldEmailCode string `json:"old_email_code" binding:"required,len=6"`
+		NewEmailCode string `json:"new_email_code" binding:"required,len=6"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+	userIDUint := userID.(uint)
+
+	// 从上下文中获取当前用户邮箱
+	currentEmail, _ := c.Get("email")
+	currentEmailStr := currentEmail.(string)
+
+	if newToken, err := h.authService.UpdateEmail(userIDUint, currentEmailStr, req.NewEmail, req.OldEmailCode, req.NewEmailCode); err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "邮箱已被使用" {
+			statusCode = http.StatusConflict
+		}
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "邮箱更新成功",
+			"token":   newToken,
+		})
+		return
+	}
+}
+
+// UpdatePassword 更新密码
+// @Summary 更新用户密码
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body string true "更新密码参数" example({"email": "user@example.com", "code": "123456", "new_password": "newpassword123"})
+// @Success 200 {object} string "更新成功" example({"success": true, "message": "密码更新成功"})
+// @Failure 400 {object} string "参数错误" example({"success": false, "message": "请求参数格式错误"})
+// @Router /api/auth/change_password [put]
+func (h *AuthHandler) UpdatePassword(c *gin.Context) {
+	var req struct {
+		Email       string `json:"email" binding:"required,email"`
+		Code        string `json:"code" binding:"required,len=6"`
+		NewPassword string `json:"new_password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+	userIDUint := userID.(uint)
+
+	if err := h.authService.UpdatePassword(userIDUint, req.Email, req.Code, req.NewPassword); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "密码更新成功",
 	})
 }

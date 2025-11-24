@@ -85,16 +85,22 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	}
 
 	// 设置路由
+	//初始化结构
+	userRepo := repositories.NewUserRepository(db)
+	emailService := services.NewEmailService(emailConfig, repositories.NewVerificationCodeRepository(db))
+	authService := services.NewAuthService(userRepo, emailService, cfg.JWTSecret)
+
 	//接口文档路由
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	emailService := services.NewEmailService(emailConfig, repositories.NewVerificationCodeRepository(db))
 	//健康检查路由
 	router.SetupRoutes(r, db)
 	//邮件路由
 	router.SetupEmailRoutes(r.Group("/api"), db, emailConfig)
-	//用户认证路由（注册登录）
+	//用户认证路由（注册登录，个人信息）
 	router.SetupAuthRoutes(r.Group("/api"), db, emailService, cfg.JWTSecret)
+	//待办路由
+	router.SetupTodoRoutes(r, db, authService)
 }
 
 // Run 启动服务器

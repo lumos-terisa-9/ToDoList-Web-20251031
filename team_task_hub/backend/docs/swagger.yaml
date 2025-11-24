@@ -1,5 +1,120 @@
 basePath: /api
 definitions:
+  handlers.CancelCompletedTodoRequest:
+    properties:
+      description:
+        example: 项目进度讨论
+        type: string
+      end_time:
+        example: "2024-01-15T15:00:00Z"
+        type: string
+      start_time:
+        example: "2024-01-15T14:00:00Z"
+        type: string
+      title:
+        example: 团队会议
+        type: string
+    required:
+    - description
+    - end_time
+    - start_time
+    - title
+    type: object
+  handlers.CancelCompletedTodoResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  handlers.CancelTodoAndChildrenRequest:
+    properties:
+      createdAt:
+        type: string
+      description:
+        example: 项目进度讨论
+        type: string
+      title:
+        example: 每周团队会议
+        type: string
+    required:
+    - title
+    type: object
+  handlers.CancelTodoRequest:
+    properties:
+      description:
+        example: 项目进度讨论
+        type: string
+      end_time:
+        example: "2024-01-15T15:00:00Z"
+        type: string
+      start_time:
+        example: "2024-01-15T14:00:00Z"
+        type: string
+      title:
+        example: 团队会议
+        type: string
+    required:
+    - end_time
+    - start_time
+    - title
+    type: object
+  handlers.CancelTodoResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  handlers.CompleteTodoRequest:
+    properties:
+      description:
+        example: 项目进度讨论
+        type: string
+      end_time:
+        example: "2024-01-15T15:00:00Z"
+        type: string
+      start_time:
+        example: "2024-01-15T14:00:00Z"
+        type: string
+      title:
+        example: 团队会议
+        type: string
+    required:
+    - description
+    - end_time
+    - start_time
+    - title
+    type: object
+  handlers.CompleteTodoResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  handlers.CompletedTodoResponse:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      todos:
+        items:
+          $ref: '#/definitions/models.Todo'
+        type: array
+    type: object
+  handlers.RenewTodoResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   handlers.SendVerificationCodeRequest:
     properties:
       business:
@@ -11,6 +126,19 @@ definitions:
     required:
     - business
     - email
+    type: object
+  handlers.TodoListResponse:
+    properties:
+      count:
+        type: integer
+      message:
+        type: string
+      success:
+        type: boolean
+      todos:
+        items:
+          $ref: '#/definitions/models.Todo'
+        type: array
     type: object
   handlers.VerifyCodeRequest:
     properties:
@@ -27,6 +155,103 @@ definitions:
     - business
     - code
     - email
+    type: object
+  models.Todo:
+    properties:
+      category:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      creator_organ_id:
+        type: integer
+      creator_user_id:
+        type: integer
+      description:
+        type: string
+      end_time:
+        type: string
+      has_children:
+        type: boolean
+      id:
+        type: integer
+      parent_id:
+        description: 父子关系
+        type: integer
+      repeat_end_date:
+        type: string
+      repeat_interval:
+        type: integer
+      repeat_type:
+        description: 重复规则
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      urgency:
+        type: string
+    type: object
+  services.CreateTodoRequest:
+    properties:
+      category:
+        default: personal
+        enum:
+        - work
+        - study
+        - fun
+        - personal
+        type: string
+      child_dates:
+        description: 子待办日期数组
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      end_time:
+        type: string
+      repeat_end_date:
+        type: string
+      repeat_interval:
+        default: 1
+        type: integer
+      repeat_type:
+        default: none
+        description: 重复规则
+        enum:
+        - none
+        - daily
+        - weekly
+        - monthly
+        type: string
+      start_time:
+        type: string
+      title:
+        type: string
+      urgency:
+        default: medium
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+    required:
+    - end_time
+    - start_time
+    - title
+    type: object
+  services.CreateTodoResponse:
+    properties:
+      created_at:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
     type: object
   services.LogoutResponse:
     properties:
@@ -89,6 +314,152 @@ paths:
       summary: 测试SMTP连接
       tags:
       - 系统管理
+  /api/auth/change_avatar:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 更新头像参数
+        example: '{"avatar_url": "https://example.com/new-avatar.jpg"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '更新成功" example({"success": true, "message": "头像更新成功"})'
+          schema:
+            type: string
+        "400":
+          description: '参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 更新用户头像
+      tags:
+      - 认证
+  /api/auth/change_email:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 更新邮箱参数
+        example: '{"new_email": "new@example.com", "old_email_code": "123456", "new_email_code":
+          "654321"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '更新成功" example({"success": true, "message": "邮箱更新成功"})'
+          schema:
+            type: string
+        "400":
+          description: '参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+        "409":
+          description: '邮箱冲突" example({"success": false, "message": "邮箱已被使用"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 更新用户邮箱
+      tags:
+      - 认证
+  /api/auth/change_password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 更新密码参数
+        example: '{"email": "user@example.com", "code": "123456", "new_password":
+          "newpassword123"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '更新成功" example({"success": true, "message": "密码更新成功"})'
+          schema:
+            type: string
+        "400":
+          description: '参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 更新用户密码
+      tags:
+      - 认证
+  /api/auth/change_userName:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 更新用户名参数
+        example: '{"username": "新用户名"}'
+        in: body
+        name: request
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '更新成功" example({"success": true, "message": "用户名更新成功"})'
+          schema:
+            type: string
+        "400":
+          description: '参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+        "409":
+          description: '用户名冲突" example({"success": false, "message": "用户名已被占用"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 更新用户名
+      tags:
+      - 认证
   /api/auth/login:
     post:
       consumes:
@@ -117,6 +488,83 @@ paths:
           schema:
             type: string
       summary: 用户登录
+      tags:
+      - 认证
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: '用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）'
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.LogoutResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 用户登出
+      tags:
+      - 认证
+  /api/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: '获取当前已认证登录用户的详细信息，需要有效的JWT令牌。令牌需置于Header中：Authorization: Bearer
+        <token>'
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取用户信息成功", "data":
+            {"id": 1001, "username": "张三", "email": "user@example.com", "avatar_url":
+            "https://example.com/avatar.jpg"}})'
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误或用户标识缺失
+          schema:
+            type: string
+        "401":
+          description: 未提供有效的认证令牌
+          schema:
+            type: string
+        "404":
+          description: 用户不存在
+          schema:
+            type: string
+        "500":
+          description: 服务器内部错误或用户标识格式错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户个人信息
       tags:
       - 认证
   /api/auth/register:
@@ -153,7 +601,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 向指定邮箱发送6位数字验证码，支持多种业务场景
+      description: 向指定邮箱发送6位数字验证码，支持多种业务场景，"register","change_email_old","change_email_new","change_password"
       parameters:
       - description: 发送验证码请求参数
         in: body
@@ -213,11 +661,52 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
-  /auth/logout:
+  /api/todos/Get-OneDayTodos:
+    get:
+      description: 查询在指定日期开始的所有未完成待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "date":
+            "2024-01-15", "todos": [...], "count": 5})'
+          schema:
+            $ref: '#/definitions/handlers.TodoListResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "日期参数不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天开始的待办事项
+      tags:
+      - 待办查询
+  /api/todos/UpdateTodos:
     post:
       consumes:
       - application/json
-      description: '用户登出，使当前令牌失效。令牌需置于Header中：Authorization: Bearer <token>（bearer和token中间有空格）'
+      description: 为有生育能力的过期待办自动创建下一代实例
       parameters:
       - default: Bearer
         description: Bearer Token
@@ -229,22 +718,362 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: '续期成功" example({"success": true, "message": "续期完成: 成功 3, 跳过
+            1, 失败 0"})'
           schema:
-            $ref: '#/definitions/services.LogoutResponse'
+            $ref: '#/definitions/handlers.RenewTodoResponse'
         "400":
-          description: Bad Request
+          description: '请求参数错误" example({"success": false, "message": "用户未认证"})'
           schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "续期操作失败: 数据库连接错误"})'
           schema:
-            additionalProperties: true
-            type: object
+            type: string
       security:
-      - ApiKeyAuth: []
-      summary: 用户登出
+      - BearerAuth: []
+      summary: 续期过期待办
       tags:
-      - 认证
+      - 待办事项
+  /api/todos/cancel:
+    post:
+      consumes:
+      - application/json
+      description: 根据待办的具体信息将其状态改为已取消
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 取消待办请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CancelTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '取消成功" example({"success": true, "message": "待办已成功取消"})'
+          schema:
+            $ref: '#/definitions/handlers.CancelTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "取消待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 取消待办事项
+      tags:
+      - 待办事项
+  /api/todos/cancel-completedTodo:
+    post:
+      consumes:
+      - application/json
+      description: 将已完成的待办事项状态改为未完成
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 取消完成请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CancelCompletedTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '取消成功" example({"success": true, "message": "待办已成功取消完成状态"})'
+          schema:
+            $ref: '#/definitions/handlers.CancelCompletedTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "标题不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "无法取消完成状态: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 取消已完成待办事项
+      tags:
+      - 待办事项
+  /api/todos/cancel-with-children:
+    post:
+      consumes:
+      - application/json
+      description: 根据待办标题和描述取消父待办及其所有子待办（使用事务确保一致性）
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 取消待办请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CancelTodoAndChildrenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '取消成功" example({"success": true, "message": "待办及其子待办已成功取消"})'
+          schema:
+            $ref: '#/definitions/handlers.CancelTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "请求参数格式错误"})'
+          schema:
+            type: string
+        "404":
+          description: '未找到待办" example({"success": false, "message": "未找到匹配的待办事项"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "取消操作失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 取消待办及其所有子待办
+      tags:
+      - 待办事项
+  /api/todos/coming-endTodos:
+    get:
+      description: 查询在未来七天内会结束的所有待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "todos":
+            [...], "count": 3})'
+          schema:
+            $ref: '#/definitions/handlers.TodoListResponse'
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询未来七天结束的待办失败:
+            数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取未来七天会结束的待办事项
+      tags:
+      - 待办查询
+  /api/todos/coming-startTodos:
+    get:
+      description: 查询在未来七天内会开始的所有待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "todos":
+            [...], "count": 5})'
+          schema:
+            $ref: '#/definitions/handlers.TodoListResponse'
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询未来七天开始的待办失败:
+            数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取未来七天会开始的待办事项
+      tags:
+      - 待办查询
+  /api/todos/complete:
+    post:
+      consumes:
+      - application/json
+      description: 根据待办的具体信息将其状态改为已完成，并自动记录完成时间
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 完成待办请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CompleteTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '完成成功" example({"success": true, "message": "待办已完成于 2024-01-15
+            14:30"})'
+          schema:
+            $ref: '#/definitions/handlers.CompleteTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "标题和内容不能为空"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "完成待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 完成待办事项
+      tags:
+      - 待办事项
+  /api/todos/completed_todo:
+    get:
+      description: 查询在指定日期完成的所有待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "date":
+            "2024-01-15", "todos": [...], "count": 3})'
+          schema:
+            $ref: '#/definitions/handlers.CompletedTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "日期参数不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询已完成待办失败:
+            数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取指定日期完成的待办事项
+      tags:
+      - 待办查询
+  /api/todos/createTodo:
+    post:
+      consumes:
+      - application/json
+      description: 创建普通待办或重复待办事项。重复待办会根据规则及ChildDates生成子实例。
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 创建待办请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/services.CreateTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: '创建成功" example({"success": true, "message": "待办创建成功", "created_at":
+            "2024-01-15T10:30:00Z"})'
+          schema:
+            $ref: '#/definitions/services.CreateTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "标题不能为空"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "创建待办失败: 数据库连接错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 创建待办事项
+      tags:
+      - 待办事项
+  /api/todos/todayTodos:
+    get:
+      description: 查询与今天时间段有交集的所有未完成待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "todos":
+            [...], "count": 5})'
+          schema:
+            $ref: '#/definitions/handlers.TodoListResponse'
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询今日待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取今日待办事项
+      tags:
+      - 待办查询
 swagger: "2.0"

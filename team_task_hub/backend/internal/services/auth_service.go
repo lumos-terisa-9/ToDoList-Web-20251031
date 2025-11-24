@@ -26,10 +26,11 @@ type AuthService struct {
 
 // JWTClaims JWT声明
 type JWTClaims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	JTI      string `json:"jti"`
+	UserID       uint   `json:"user_id"`
+	Username     string `json:"username"`
+	Email        string `json:"email"`
+	JTI          string `json:"jti"`
+	TokenVersion uint   `json:"token_version"`
 	jwt.RegisteredClaims
 }
 
@@ -117,7 +118,7 @@ func (s *AuthService) Register(req *RegisterRequest) (*RegisterResponse, error) 
 		return nil, errors.New("用户创建失败")
 	}
 
-	// 8. 标记验证码为已使用
+	// 标记验证码为已使用
 	_ = s.emailService.MarkCodeAsUsed(req.Email, req.Code)
 
 	return &RegisterResponse{
@@ -188,10 +189,11 @@ func (s *AuthService) generateJWT(user *models.User) (string, error) {
 	}
 
 	claims := &JWTClaims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		JTI:      jti,
+		UserID:       user.ID,
+		Username:     user.Username,
+		Email:        user.Email,
+		JTI:          jti,
+		TokenVersion: user.TokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -229,7 +231,27 @@ func (s *AuthService) ValidateJWT(tokenString string) (*JWTClaims, error) {
 		return nil, errors.New("令牌已失效")
 	}
 
+	if err := s.validateTokenVersion(claims); err != nil {
+		return nil, err
+	}
+
 	return claims, nil
+}
+
+// validateTokenVersion 验证令牌版本号
+func (s *AuthService) validateTokenVersion(claims *JWTClaims) error {
+	user, err := s.FindUserByIDWithCache(claims.UserID)
+	if err != nil {
+		return fmt.Errorf("用户信息验证失败: %v", err)
+	}
+	if user == nil {
+		return errors.New("用户不存在")
+	}
+	if claims.TokenVersion != user.TokenVersion {
+		return fmt.Errorf("令牌版本不匹配（令牌:%d ≠ 当前:%d）",
+			claims.TokenVersion, user.TokenVersion)
+	}
+	return nil
 }
 
 // LogoutResponse 登出响应
@@ -281,7 +303,7 @@ func (s *AuthService) findUserByIdentifier(identifier string) (*models.User, err
 
 	// 尝试解析为数字ID
 	if userID, err := strconv.ParseUint(identifier, 10, 32); err == nil {
-		return s.findUserByIDWithCache(uint(userID))
+		return s.FindUserByIDWithCache(uint(userID))
 	}
 
 	return nil, errors.New("用户不存在")
@@ -293,7 +315,7 @@ func (s *AuthService) findUserByEmailWithCache(email string) (*models.User, erro
 	userID, err := cache.GetUserIDByEmail(email)
 	if err == nil {
 		// 缓存命中，通过ID获取用户完整信息
-		return s.findUserByIDWithCache(userID)
+		return s.FindUserByIDWithCache(userID)
 	}
 
 	// 缓存未命中，查询数据库
@@ -313,8 +335,8 @@ func (s *AuthService) findUserByEmailWithCache(email string) (*models.User, erro
 	return user, nil
 }
 
-// findUserByIDWithCache 通过ID查找用户（带缓存）
-func (s *AuthService) findUserByIDWithCache(userID uint) (*models.User, error) {
+// FindUserByIDWithCache 通过ID查找用户（带缓存）
+func (s *AuthService) FindUserByIDWithCache(userID uint) (*models.User, error) {
 	// 从缓存获取完整用户信息
 	cachedUser, err := cache.GetUser(userID)
 	if err == nil && cachedUser != nil {
@@ -332,4 +354,105 @@ func (s *AuthService) findUserByIDWithCache(userID uint) (*models.User, error) {
 	// 将查询结果写入缓存
 	cache.SetUser(user, 30*time.Minute)
 	return user, nil
+}
+
+// 更新用户名
+func (s *AuthService) UpdateUserName(userID uint, newUserName string) error {
+	// 基础验证
+	newUserName = strings.TrimSpace(newUserName)
+	if len(newUserName) == 0 {
+		return fmt.Errorf("用户名不能为空")
+	}
+
+	// 检查新用户名是否已被其他用户占用
+	exists, err := s.userRepo.ExistsByUsername(newUserName)
+	if err != nil {
+		return fmt.Errorf("检查用户名失败: %v", err)
+	}
+	if exists {
+		return fmt.Errorf("用户名 '%s' 已被占用", newUserName)
+	}
+
+	// 执行更新
+	if err := s.userRepo.UpdateUserName(userID, newUserName); err != nil {
+		return fmt.Errorf("更新用户名失败: %v", err)
+	}
+	cache.DeleteUser(userID)
+	return nil
+}
+
+// 更新头像
+func (s *AuthService) UpdateAvatar(userID uint, newAvatar string) error {
+	if err := s.userRepo.UpdateAvatar(userID, newAvatar); err != nil {
+		return errors.New("更新头像失败")
+	}
+	cache.DeleteUser(userID)
+	return nil
+}
+
+// 更新用户邮箱
+func (s *AuthService) UpdateEmail(userID uint, oldEmail, newEmail, oldEmailCode, newEmailCode string) (string, error) {
+	// 验证旧邮箱
+	if isValidOld, _, err := s.emailService.VerifyCode(oldEmail, oldEmailCode, "change_email_old"); err != nil {
+		log.Printf("验证旧邮箱验证码时发生错误: %v", err)
+		return "", fmt.Errorf("验证码错误")
+	} else if !isValidOld {
+		return "", fmt.Errorf("旧邮箱验证码错误或已过期")
+	}
+
+	// 验证新邮箱
+	if isValidNew, _, err := s.emailService.VerifyCode(newEmail, newEmailCode, "change_email_new"); err != nil {
+		log.Printf("验证新邮箱验证码时发生错误: %v", err)
+		return "", fmt.Errorf("验证码错误")
+	} else if !isValidNew {
+		return "", fmt.Errorf("新邮箱验证码错误或已过期")
+	}
+
+	// 更新邮箱
+	if err := s.userRepo.UpdateEmail(userID, newEmail); err != nil {
+		return "", fmt.Errorf("更新用户邮箱失败")
+	}
+
+	// 获取更新后的用户信息
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", fmt.Errorf("获取用户信息失败")
+	}
+
+	// 生成新的JWT令牌
+	newToken, err := s.generateJWT(user)
+	if err != nil {
+		return "", fmt.Errorf("生成新令牌失败")
+	}
+	cache.DeleteUser(userID)
+
+	return newToken, nil
+}
+
+// 更新用户密码
+func (s *AuthService) UpdatePassword(userID uint, email, code, newPassword string) error {
+	//验证密码强度
+	if !s.isValidPassword(newPassword) {
+		return fmt.Errorf("密码必须包含字母和数字，长度6-20位")
+	}
+
+	//验证验证码
+	if isValid, _, err := s.emailService.VerifyCode(email, code, "change_password"); err != nil {
+		return fmt.Errorf("验证服务暂时不可用")
+	} else if !isValid {
+		return fmt.Errorf("更改密码验证码无效或者过期")
+	}
+
+	//密码加密
+	passwordHash, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("密码加密失败")
+	}
+
+	//更新密码
+	if err := s.userRepo.UpdatePassword(userID, passwordHash); err != nil {
+		return fmt.Errorf("更新密码失败")
+	}
+	cache.DeleteUser(userID)
+	return nil
 }
