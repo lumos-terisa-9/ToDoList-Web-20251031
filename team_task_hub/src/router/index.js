@@ -14,6 +14,11 @@ const router = createRouter({
       name: 'personpage',
       component: PersonPage, // 原来的日历页面
     },
+    {
+      path: '/orgmap',
+      name: 'orgmap',
+      component: () => import('@/views/MapPage.vue')
+    }
   ],
 })
 

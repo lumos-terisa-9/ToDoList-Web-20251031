@@ -53,7 +53,7 @@ function handleUserClick() {
 }
 
 function handleOrgClick() {
-  alert("我的组织 功能暂未上线");
+  router.push({ name: 'orgmap' })
 }
 
 // 监听存储变化和路由变化
