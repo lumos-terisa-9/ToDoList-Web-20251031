@@ -615,6 +615,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/todos/Get-OneDayTodos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询在指定日期开始的所有未完成待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取某一天开始的待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-15\"",
+                        "description": "查询日期",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"date\": \"2024-01-15\", \"todos\": [...], \"count\": 5})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TodoListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"日期参数不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/todos/UpdateTodos": {
             "post": {
                 "security": [
@@ -723,6 +784,71 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "系统内部错误\" example({\"success\": false, \"message\": \"取消待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/cancel-completedTodo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将已完成的待办事项状态改为未完成",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "取消已完成待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "取消完成请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelCompletedTodoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "取消成功\" example({\"success\": true, \"message\": \"待办已成功取消完成状态\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CancelCompletedTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"标题不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"无法取消完成状态: 数据库错误\"})",
                         "schema": {
                             "type": "string"
                         }
@@ -1117,12 +1243,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.CancelCompletedTodoRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "end_time",
+                "start_time",
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "项目进度讨论"
+                },
+                "end_time": {
+                    "type": "string",
+                    "example": "2024-01-15T15:00:00Z"
+                },
+                "start_time": {
+                    "type": "string",
+                    "example": "2024-01-15T14:00:00Z"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "团队会议"
+                }
+            }
+        },
+        "handlers.CancelCompletedTodoResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.CancelTodoAndChildrenRequest": {
             "type": "object",
             "required": [
                 "title"
             ],
             "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string",
                     "example": "项目进度讨论"
@@ -1308,6 +1475,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "creator_organ_id": {

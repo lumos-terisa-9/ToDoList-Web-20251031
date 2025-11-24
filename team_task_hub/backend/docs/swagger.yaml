@@ -1,7 +1,36 @@
 basePath: /api
 definitions:
+  handlers.CancelCompletedTodoRequest:
+    properties:
+      description:
+        example: 项目进度讨论
+        type: string
+      end_time:
+        example: "2024-01-15T15:00:00Z"
+        type: string
+      start_time:
+        example: "2024-01-15T14:00:00Z"
+        type: string
+      title:
+        example: 团队会议
+        type: string
+    required:
+    - description
+    - end_time
+    - start_time
+    - title
+    type: object
+  handlers.CancelCompletedTodoResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   handlers.CancelTodoAndChildrenRequest:
     properties:
+      createdAt:
+        type: string
       description:
         example: 项目进度讨论
         type: string
@@ -132,6 +161,8 @@ definitions:
       category:
         type: string
       completed_at:
+        type: string
+      created_at:
         type: string
       creator_organ_id:
         type: integer
@@ -630,6 +661,47 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
+  /api/todos/Get-OneDayTodos:
+    get:
+      description: 查询在指定日期开始的所有未完成待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "date":
+            "2024-01-15", "todos": [...], "count": 5})'
+          schema:
+            $ref: '#/definitions/handlers.TodoListResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "日期参数不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天开始的待办事项
+      tags:
+      - 待办查询
   /api/todos/UpdateTodos:
     post:
       consumes:
@@ -703,6 +775,48 @@ paths:
       security:
       - BearerAuth: []
       summary: 取消待办事项
+      tags:
+      - 待办事项
+  /api/todos/cancel-completedTodo:
+    post:
+      consumes:
+      - application/json
+      description: 将已完成的待办事项状态改为未完成
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 取消完成请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CancelCompletedTodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '取消成功" example({"success": true, "message": "待办已成功取消完成状态"})'
+          schema:
+            $ref: '#/definitions/handlers.CancelCompletedTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "标题不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "无法取消完成状态: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 取消已完成待办事项
       tags:
       - 待办事项
   /api/todos/cancel-with-children:

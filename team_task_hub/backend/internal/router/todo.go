@@ -29,5 +29,7 @@ func SetupTodoRoutes(router *gin.Engine, db *gorm.DB, authService *services.Auth
 		todoGroup.GET("/completed_todo", todoHandler.GetCompletedTodosByDate)
 		todoGroup.GET("/coming-startTodos", todoHandler.GetComingStartTodos)
 		todoGroup.GET("/coming-endTodos", todoHandler.GetComingEndTodos)
+		todoGroup.POST("/cancel-completedTodo", todoHandler.CancelCompletedTodo)
+		todoGroup.GET("/Get-OneDayTodos", todoHandler.GetOneDayTodos)
 	}
 }

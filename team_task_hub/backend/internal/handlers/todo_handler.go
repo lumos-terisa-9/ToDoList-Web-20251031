@@ -614,3 +614,152 @@ func (h *TodoHandler) GetComingEndTodos(c *gin.Context) {
 		"count":   len(todos),
 	})
 }
+
+// CancelCompletedTodoRequest 取消已完成待办请求结构
+type CancelCompletedTodoRequest struct {
+	Title       string    `json:"title" binding:"required" example:"团队会议"`
+	Description string    `json:"description" binding:"required" example:"项目进度讨论"`
+	StartTime   time.Time `json:"start_time" binding:"required" example:"2024-01-15T14:00:00Z"`
+	EndTime     time.Time `json:"end_time" binding:"required" example:"2024-01-15T15:00:00Z"`
+}
+
+// CancelCompletedTodoResponse 取消已完成待办响应结构
+type CancelCompletedTodoResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// CancelCompletedTodo 取消已完成待办
+// @Summary 取消已完成待办事项
+// @Description 将已完成的待办事项状态改为未完成
+// @Tags 待办事项
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body CancelCompletedTodoRequest true "取消完成请求"
+// @Success 200 {object} CancelCompletedTodoResponse "取消成功" example({"success": true, "message": "待办已成功取消完成状态"})
+// @Failure 400 {object} string "请求参数错误" example({"success": false, "message": "标题不能为空"})
+// @Failure 401 {object} string "未授权" example({"success": false, "message": "用户未认证"})
+// @Failure 500 {object} string "系统内部错误" example({"success": false, "message": "无法取消完成状态: 数据库错误"})
+// @Router /api/todos/cancel-completedTodo [post]
+func (h *TodoHandler) CancelCompletedTodo(c *gin.Context) {
+	var req CancelCompletedTodoRequest
+
+	// 绑定JSON请求参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 从认证中间件获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "用户未认证",
+		})
+		return
+	}
+
+	// 验证用户ID类型
+	userIDUint, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "用户ID格式错误",
+		})
+		return
+	}
+
+	// 调用服务层取消完成状态
+	err := h.todoService.CancelCompletedTodo(userIDUint, req.Title, req.Description, req.StartTime, req.EndTime)
+	if err != nil {
+		// 根据错误类型设置HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		if strings.Contains(errorMsg, "不能为空") ||
+			strings.Contains(errorMsg, "不能晚于") ||
+			strings.Contains(errorMsg, "格式错误") {
+			statusCode = http.StatusBadRequest
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": errorMsg,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "待办已成功取消完成状态",
+	})
+}
+
+// GetOneDayTodos 获取某一天开始的待办事项
+// @Summary 获取某一天开始的待办事项
+// @Description 查询在指定日期开始的所有未完成待办事项
+// @Tags 待办查询
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param date query string true "查询日期" example("2024-01-15")
+// @Success 200 {object} TodoListResponse "查询成功" example({"success": true, "message": "查询成功", "date": "2024-01-15", "todos": [...], "count": 5})
+// @Failure 400 {object} string "请求参数错误" example({"success": false, "message": "日期参数不能为空"})
+// @Failure 401 {object} string "未授权" example({"success": false, "message": "用户未认证"})
+// @Failure 500 {object} string "系统内部错误" example({"success": false, "message": "查询待办失败: 数据库错误"})
+// @Router /api/todos/Get-OneDayTodos [get]
+func (h *TodoHandler) GetOneDayTodos(c *gin.Context) {
+	// 从查询参数获取日期
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "日期参数不能为空",
+		})
+		return
+	}
+
+	// 从认证中间件获取用户ID
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "用户未认证",
+		})
+		return
+	}
+
+	// 验证用户ID类型
+	userIDUint, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "用户ID格式错误",
+		})
+		return
+	}
+
+	// 调用服务层获取指定日期开始的待办
+	todos, err := h.todoService.GetOneDayTodos(userIDUint, dateStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询成功",
+		"date":    dateStr,
+		"todos":   todos,
+		"count":   len(todos),
+	})
+}

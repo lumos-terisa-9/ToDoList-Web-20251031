@@ -392,6 +392,17 @@ func (s *TodoService) CompleteTodoByDetails(userID uint, title, description stri
 	return true, fmt.Sprintf("待办已完成于 %s", completedAt.Format("2006-01-02 15:04"))
 }
 
+// CancelCompletedTodo 将已完成待办改成未完成状态
+func (s *TodoService) CancelCompletedTodo(userID uint, title, description string, startTime, endTime time.Time) error {
+	if err := s.validateCompleteRequest(title, description, startTime, endTime); err != nil {
+		return fmt.Errorf("%s", err.Error())
+	}
+	if err := s.todoRepo.UpdateTodoStateAndCompletedTime(userID, title, description, startTime, endTime, "pending", time.Now()); err != nil {
+		return fmt.Errorf("无法将完成待办改成未完成，原因：%v", err)
+	}
+	return nil
+}
+
 // validateCompleteRequest 验证完成待办请求参数
 func (s *TodoService) validateCompleteRequest(title, description string, startTime, endTime time.Time) error {
 
@@ -420,6 +431,20 @@ func (s *TodoService) GetTodayTodos(userID uint) ([]models.Todo, error) {
 		return nil, fmt.Errorf("查询今日待办失败: %v", err)
 	}
 
+	return todos, nil
+}
+
+// GetOneDayTodos 得到某一天开始的未完成的待办
+func (s *TodoService) GetOneDayTodos(userID uint, dateStr string) ([]models.Todo, error) {
+	date, err := ParseDateString(dateStr)
+	if err != nil {
+		return nil, err
+	}
+	startOfDay, endOfDay := DayRange(date)
+	todos, err := s.todoRepo.FindTodosStartingInRange(userID, startOfDay, endOfDay)
+	if err != nil {
+		return nil, err
+	}
 	return todos, nil
 }
 
