@@ -224,8 +224,9 @@ func (h *TodoHandler) CancelTodoByDetails(c *gin.Context) {
 
 // CancelTodoAndChildrenRequest 取消待办及其子待办请求结构
 type CancelTodoAndChildrenRequest struct {
-	Title       string `json:"title" binding:"required" example:"每周团队会议"`
-	Description string `json:"description,omitempty" example:"项目进度讨论"`
+	Title       string    `json:"title" binding:"required" example:"每周团队会议"`
+	Description string    `json:"description,omitempty" example:"项目进度讨论"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // CancelTodoAndChildren 取消待办及其子待办
@@ -275,7 +276,7 @@ func (h *TodoHandler) CancelTodoAndChildren(c *gin.Context) {
 	}
 
 	// 调用服务层取消待办及其子待办
-	err := h.todoService.CancelTodoAndChildren(userIDUint, req.Title, req.Description)
+	err := h.todoService.CancelTodoAndChildren(userIDUint, req.Title, req.Description, req.CreatedAt)
 
 	if err != nil {
 		// 根据错误类型设置不同的HTTP状态码

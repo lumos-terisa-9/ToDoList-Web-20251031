@@ -14,7 +14,8 @@ type Todo struct {
 
 	StartTime   time.Time `gorm:"not null;index" json:"start_time"`
 	EndTime     time.Time `gorm:"not null" json:"end_time"`
-	CompletedAt time.Time `gorm:"default:'1970-01-01'" json:"completed_at"`
+	CompletedAt time.Time `gorm:"default:'1900-01-01'" json:"completed_at"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 
 	// 父子关系
 	ParentID    uint `gorm:"not null;default:0;index" json:"parent_id"`
