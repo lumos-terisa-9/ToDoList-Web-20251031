@@ -46,7 +46,6 @@ func (r *OrganizationMemberRepository) GetByOrganizationID(organizationID uint) 
 	result := r.db.Where("organization_id = ?", organizationID).
 		Preload("User").
 		Preload("Organization").
-		Order("created_at ASC").
 		Find(&members)
 	if result.Error != nil {
 		return nil, fmt.Errorf("查询组织成员失败: %v", result.Error)
@@ -58,9 +57,7 @@ func (r *OrganizationMemberRepository) GetByOrganizationID(organizationID uint) 
 func (r *OrganizationMemberRepository) GetByUserID(userID uint) ([]models.OrganizationMember, error) {
 	var members []models.OrganizationMember
 	result := r.db.Where("user_id = ?", userID).
-		Preload("User").
 		Preload("Organization").
-		Order("created_at ASC").
 		Find(&members)
 	if result.Error != nil {
 		return nil, fmt.Errorf("查询用户组织关系失败: %v", result.Error)
