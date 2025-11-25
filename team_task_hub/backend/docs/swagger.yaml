@@ -1045,6 +1045,47 @@ paths:
       summary: 创建待办事项
       tags:
       - 待办事项
+  /api/todos/get-OneDayExpiredTodos:
+    get:
+      description: 查询在指定日期过期的所有未完成待办事项
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '查询成功" example({"success": true, "message": "查询成功", "date":
+            "2024-01-15", "todos": [...], "count": 3})'
+          schema:
+            type: string
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "日期参数不能为空"})'
+          schema:
+            type: string
+        "401":
+          description: '未授权" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询过期待办失败: 数据库错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天过期的待办事项
+      tags:
+      - 待办查询
   /api/todos/todayTodos:
     get:
       description: 查询与今天时间段有交集的所有未完成待办事项

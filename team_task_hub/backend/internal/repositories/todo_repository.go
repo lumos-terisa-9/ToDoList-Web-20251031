@@ -104,11 +104,24 @@ func (r *TodoRepository) FindTodosInTimeRange(userID uint, startTime, endTime ti
 		Where("creator_user_id = ?", userID).
 		Where("status = 'pending'").
 		Where("has_children = false").
-		Where("(start_time BETWEEN ? AND ?) OR (end_time BETWEEN ? AND ?)",
-			startTime, endTime, startTime, endTime).
+		Where("(start_time BETWEEN ? AND ?) OR (end_time BETWEEN ? AND ?) OR (start_time<? and end_time>?)",
+			startTime, endTime, startTime, endTime, startTime, endTime).
 		Order("start_time ASC").
 		Find(&todos).Error
 
+	return todos, err
+}
+
+// FindOneDayExpiredTodos 查找某一天已经过期的待办
+func (r *TodoRepository) FindOneDayExpiredTodos(userID uint, startTime, endTime time.Time) ([]models.Todo, error) {
+	var todos []models.Todo
+	err := r.db.
+		Where("creator_user_id = ?", userID).
+		Where("status = 'pending'").
+		Where("has_children = false").
+		Where("endTime between ? and ?", startTime, endTime).
+		Order("endTime ASC").
+		Find(&todos).Error
 	return todos, err
 }
 

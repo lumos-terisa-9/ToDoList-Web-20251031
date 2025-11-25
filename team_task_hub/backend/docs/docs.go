@@ -1194,6 +1194,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/todos/get-OneDayExpiredTodos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询在指定日期过期的所有未完成待办事项",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办查询"
+                ],
+                "summary": "获取某一天过期的待办事项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-15\"",
+                        "description": "查询日期",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功\" example({\"success\": true, \"message\": \"查询成功\", \"date\": \"2024-01-15\", \"todos\": [...], \"count\": 3})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"日期参数不能为空\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询过期待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/todos/todayTodos": {
             "get": {
                 "security": [

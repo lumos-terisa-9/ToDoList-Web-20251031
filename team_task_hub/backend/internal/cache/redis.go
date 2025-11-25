@@ -35,7 +35,7 @@ func InitRedis(cfg *config.Config) error {
 }
 
 // 通用缓存操作
-func setJson(key string, value interface{}, expiration time.Duration) error {
+func setJson(key string, value any, expiration time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func setJson(key string, value interface{}, expiration time.Duration) error {
 	return Client.Set(ctx, key, data, expiration).Err()
 }
 
-func getJson(key string, dest interface{}) error {
+func getJson(key string, dest any) error {
 	data, err := Client.Get(ctx, key).Bytes()
 	if err != nil {
 		return err

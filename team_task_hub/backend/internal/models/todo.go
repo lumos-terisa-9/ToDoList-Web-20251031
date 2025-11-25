@@ -13,21 +13,21 @@ type Todo struct {
 	Category    string `gorm:"type:ENUM('work','study','fun','personal');default:'personal'" json:"category"`
 
 	StartTime   time.Time `gorm:"not null;index" json:"start_time"`
-	EndTime     time.Time `gorm:"not null" json:"end_time"`
+	EndTime     time.Time `gorm:"not null;index" json:"end_time"`
 	CompletedAt time.Time `gorm:"default:'1900-01-01'" json:"completed_at"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 
 	// 父子关系
 	ParentID    uint `gorm:"not null;default:0;index" json:"parent_id"`
-	HasChildren bool `gorm:"default:false;index" json:"has_children"`
+	HasChildren bool `gorm:"default:false;" json:"has_children"`
 
 	// 重复规则
 	RepeatType     string    `gorm:"type:ENUM('none','daily','weekly','monthly');default:'none'" json:"repeat_type"`
 	RepeatInterval int       `gorm:"default:1" json:"repeat_interval"`
 	RepeatEndDate  time.Time `gorm:"default:'2125-01-01'" json:"repeat_end_date"`
 
-	CreatorUserID  uint `gorm:"not null;default:0" json:"creator_user_id"`
-	CreatorOrganID uint `gorm:"not null;default:0" json:"creator_organ_id"`
+	CreatorUserID  uint `gorm:"not null;default:0;index" json:"creator_user_id"`
+	CreatorOrganID uint `gorm:"not null;default:0;index" json:"creator_organ_id"`
 }
 
 // CalculateNextInstance 计算下一个实例时间

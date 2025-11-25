@@ -119,7 +119,7 @@ func (s *AuthService) Register(req *RegisterRequest) (*RegisterResponse, error) 
 	}
 
 	// 标记验证码为已使用
-	_ = s.emailService.MarkCodeAsUsed(req.Email, req.Code)
+	go s.emailService.MarkCodeAsUsed(req.Email, req.Code)
 
 	return &RegisterResponse{
 		UserID:   user.ID,
@@ -279,16 +279,7 @@ func (s *AuthService) Logout(tokenString string) error {
 		}
 		log.Printf("✅ 用户%d令牌已加入黑名单，剩余有效期: %v", claims.UserID, remainingTime)
 	}
-	// 如果令牌已过期，无需加入黑名单
 
-	return nil
-}
-
-// LogoutUser 通过用户ID登出（登出所有该用户的令牌）
-func (s *AuthService) LogoutUser(userID uint) error {
-	// 这里可以扩展为记录用户的所有活跃令牌并全部加入黑名单
-	// 目前简单实现为记录日志
-	log.Printf("✅ 用户%d所有会话已登出", userID)
 	return nil
 }
 
@@ -328,9 +319,9 @@ func (s *AuthService) findUserByEmailWithCache(email string) (*models.User, erro
 	}
 	// 将查询结果写入缓存
 	// 缓存用户完整信息
-	cache.SetUser(user, 30*time.Minute)
+	go cache.SetUser(user, 30*time.Minute)
 	// 缓存邮箱到用户ID的映射
-	cache.SetUserByEmail(user.Email, user.ID, 30*time.Minute)
+	go cache.SetUserByEmail(user.Email, user.ID, 30*time.Minute)
 
 	return user, nil
 }
@@ -352,7 +343,7 @@ func (s *AuthService) FindUserByIDWithCache(userID uint) (*models.User, error) {
 		return nil, errors.New("用户不存在")
 	}
 	// 将查询结果写入缓存
-	cache.SetUser(user, 30*time.Minute)
+	go cache.SetUser(user, 30*time.Minute)
 	return user, nil
 }
 

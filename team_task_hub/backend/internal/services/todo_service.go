@@ -498,3 +498,17 @@ func (s *TodoService) GetTodosEndingInNext7Days(userID uint) ([]models.Todo, err
 
 	return todos, nil
 }
+
+// GetOneDayExpiredTodos 获取某一天过期的待办
+func (s *TodoService) GetOneDayExpiredTodos(userID uint, dateStr string) ([]models.Todo, error) {
+	date, err := ParseDateString(dateStr)
+	if err != nil {
+		return nil, fmt.Errorf("解析日期出错，%v", err)
+	}
+	startTime, endTime := DayRange(date)
+	todos, err := s.todoRepo.FindOneDayExpiredTodos(userID, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("获取过期待办出错，%v", err)
+	}
+	return todos, nil
+}
