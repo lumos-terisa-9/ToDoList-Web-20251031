@@ -701,39 +701,6 @@ paths:
       summary: 获取某一天开始的待办事项
       tags:
       - 待办查询
-  /api/todos/UpdateTodos:
-    post:
-      consumes:
-      - application/json
-      description: 为有生育能力的过期待办自动创建下一代实例
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '续期成功" example({"success": true, "message": "续期完成: 成功 3, 跳过
-            1, 失败 0"})'
-          schema:
-            $ref: '#/definitions/handlers.RenewTodoResponse'
-        "400":
-          description: '请求参数错误" example({"success": false, "message": "用户未认证"})'
-          schema:
-            type: string
-        "500":
-          description: '系统内部错误" example({"success": false, "message": "续期操作失败: 数据库连接错误"})'
-          schema:
-            type: string
-      security:
-      - BearerAuth: []
-      summary: 续期过期待办
-      tags:
-      - 待办事项
   /api/todos/cancel:
     post:
       consumes:
@@ -1116,4 +1083,37 @@ paths:
       summary: 获取今日待办事项
       tags:
       - 待办查询
+  /api/todos/updateTodos:
+    post:
+      consumes:
+      - application/json
+      description: 为有生育能力的过期待办自动创建下一代实例
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '续期成功" example({"success": true, "message": "续期完成: 成功 3, 跳过
+            1, 失败 0"})'
+          schema:
+            $ref: '#/definitions/handlers.RenewTodoResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "用户未认证"})'
+          schema:
+            type: string
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "续期操作失败: 数据库连接错误"})'
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 续期过期待办
+      tags:
+      - 待办事项
 swagger: "2.0"

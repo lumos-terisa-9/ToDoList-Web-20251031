@@ -259,8 +259,7 @@ func (r *TodoRepository) BatchUpdateChildrenStatusWithTx(tx *gorm.DB, parentID u
 func (r *TodoRepository) FindExpiredRenewableTodos(userID uint) ([]models.Todo, error) {
 	var todos []models.Todo
 	now := time.Now()
-	future := now.Add(24 * time.Hour)
-
+	future := now.Add(7 * 24 * time.Hour)
 	err := r.db.
 		Where("creator_user_id = ?", userID).
 		Where("parent_id != 0").

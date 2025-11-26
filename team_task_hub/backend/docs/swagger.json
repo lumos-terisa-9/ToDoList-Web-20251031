@@ -669,56 +669,6 @@
                 }
             }
         },
-        "/api/todos/UpdateTodos": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "为有生育能力的过期待办自动创建下一代实例",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "待办事项"
-                ],
-                "summary": "续期过期待办",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer",
-                        "description": "Bearer Token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "续期成功\" example({\"success\": true, \"message\": \"续期完成: 成功 3, 跳过 1, 失败 0\"})",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.RenewTodoResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"用户未认证\"})",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"续期操作失败: 数据库连接错误\"})",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/api/todos/cancel": {
             "post": {
                 "security": [
@@ -1288,6 +1238,56 @@
                     },
                     "500": {
                         "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询今日待办失败: 数据库错误\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/todos/updateTodos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "为有生育能力的过期待办自动创建下一代实例",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "待办事项"
+                ],
+                "summary": "续期过期待办",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "续期成功\" example({\"success\": true, \"message\": \"续期完成: 成功 3, 跳过 1, 失败 0\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RenewTodoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"用户未认证\"})",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"续期操作失败: 数据库连接错误\"})",
                         "schema": {
                             "type": "string"
                         }

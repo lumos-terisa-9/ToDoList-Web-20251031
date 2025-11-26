@@ -109,7 +109,7 @@ type RenewTodoResponse struct {
 // @Success 200 {object} RenewTodoResponse "续期成功" example({"success": true, "message": "续期完成: 成功 3, 跳过 1, 失败 0"})
 // @Failure 400 {object} string "请求参数错误" example({"success": false, "message": "用户未认证"})
 // @Failure 500 {object} string "系统内部错误" example({"success": false, "message": "续期操作失败: 数据库连接错误"})
-// @Router /api/todos/UpdateTodos [post]
+// @Router /api/todos/updateTodos [post]
 func (h *TodoHandler) UpdateTodos(c *gin.Context) {
 	// 从认证中间件获取用户ID
 	userID, exists := c.Get("userID")
