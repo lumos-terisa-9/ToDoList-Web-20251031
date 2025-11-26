@@ -81,6 +81,9 @@ const activeLocation = ref(null);
 const imgWidth = 6000;
 const imgHeight = 3374;
 
+//初始缩放尺寸
+const initialZoom = ref(null);
+
 // ----------------------------
 // 点位数据
 // ----------------------------
@@ -129,11 +132,59 @@ function flyToLocation(loc) {
   if (!map.value) return;
 
   const [py, px] = percentToPx(loc);
-  map.value.flyTo([py, px], map.value.getZoom(), {
-    duration: 1.2
+  const targetLatLng = L.latLng(py, px);
+
+  // 第一次调用时记录“初始缩放等级”（一般就是 fitBounds 之后的 zoom）
+  if (initialZoom.value === null) {
+    initialZoom.value = map.value.getZoom();
+  }
+
+  // 每次点击都从同一个 baseZoom 开始重新计算，不再沿用当前 zoom
+  let zoom = initialZoom.value;
+
+  // 最大允许缩放：在初始基础上只允许略微放大，避免放大过头
+  const maxZoomAllowed = Math.min(
+    map.value.getMaxZoom(),
+    initialZoom.value + 0.8      // ★ 想再小可以改成 0.5
+  );
+
+  // 用“整张图片”的边界来判断是否会出界，而不是当前视图的 getBounds()
+  const imageBounds = L.latLngBounds(
+    [0, 0],
+    [imgHeight, imgWidth]
+  );
+
+  function canCenterAt(z) {
+    const size = map.value.getSize();
+    const halfW = size.x / 2;
+    const halfH = size.y / 2;
+
+    const proj = map.value.project(targetLatLng, z);
+    const topLeft = proj.subtract([halfW, halfH]);
+    const bottomRight = proj.add([halfW, halfH]);
+
+    const tlLatLng = map.value.unproject(topLeft, z);
+    const brLatLng = map.value.unproject(bottomRight, z);
+
+    // 只要视图四角都还在整张图片范围内，就认为可以在这个 zoom 居中
+    return imageBounds.contains(tlLatLng) && imageBounds.contains(brLatLng);
+  }
+
+  // 从初始 zoom 开始，能不放大就不放大；不够的话再一点点放大
+  while (zoom < maxZoomAllowed && !canCenterAt(zoom)) {
+    zoom += 0.25; // 小步放大，避免一下子 zoom 很大
+  }
+
+  const finalZoom = zoom;
+
+  // 使用计算好的 finalZoom，直接飞到目标点
+  map.value.flyTo(targetLatLng, finalZoom, {
+    duration: 0.8
   });
+
   activeLocation.value = loc;
 }
+
 
 function resetView() {
   if (!map.value) return;
@@ -166,44 +217,43 @@ function handleResize() {
 // ----------------------------
 onMounted(() => {
   try {
-    // 计算边界和中心点
-    const bounds = [[0, 0], [imgHeight, imgWidth]];
-    const center = [imgHeight / 2, imgWidth / 2];
+    // 原始边界
+    const bounds = [
+      [0, 0],
+      [imgHeight, imgWidth]
+    ];
 
-    // 创建全屏地图
+    // 扩展边界，避免缩放时露出黑边
+    const paddedBounds = L.latLngBounds(
+      [-50, -50],
+      [imgHeight + 50, imgWidth + 50]
+    );
+
     map.value = L.map("map", {
       crs: L.CRS.Simple,
-      minZoom: -2,
+      minZoom: -2.5,
       maxZoom: 4,
       zoomControl: false,
       attributionControl: false,
       preferCanvas: true,
       fadeAnimation: false,
       zoomAnimation: false,
-      // 添加边界限制，防止平移超出范围
-      maxBounds: bounds,
-      maxBoundsViscosity: 1.0 // 完全限制在边界内
+      maxBounds: paddedBounds,        // ★ 改动点
+      maxBoundsViscosity: 1.0
     });
 
-    // 添加地图图片层 - 使用重复平铺解决边界问题
+    // 图层
     const imageLayer = L.imageOverlay(mapImg, bounds, {
-      // 设置图片的边界行为
       className: 'map-image-layer'
     }).addTo(map.value);
 
-    // 添加自定义缩放控件到右下角
-    L.control.zoom({
-      position: 'bottomright'
-    }).addTo(map.value);
+    L.control.zoom({ position: 'bottomright'}).addTo(map.value);
 
-    // 设置初始视图 - 使用setView而不是fitBounds
-    map.value.setView(center, 0);
+    map.value.fitBounds(bounds);
 
-    // 添加点位标记
+    // 你的 marker 逻辑保持不变
     locations.value.forEach((loc) => {
       const [py, px] = percentToPx(loc);
-
-      // 创建更紧凑的图标
       const icon = L.divIcon({
         html: `
           <div class="custom-marker" data-location-id="${loc.id}">
@@ -218,32 +268,27 @@ onMounted(() => {
         iconAnchor: [18, 36],
       });
 
-      // 添加标记
       const marker = L.marker([py, px], { icon })
         .addTo(map.value)
         .on("click", () => {
           activeLocation.value = loc;
         });
 
-      // 绑定鼠标事件
       marker.on('mouseover', () => {
         marker.getElement().classList.add('marker-hover');
       });
-
       marker.on('mouseout', () => {
         marker.getElement().classList.remove('marker-hover');
       });
     });
 
-    // 添加窗口大小变化监听
     window.addEventListener('resize', handleResize);
-
-    console.log('地图初始化完成');
 
   } catch (error) {
     console.error('地图初始化失败:', error);
   }
 });
+
 
 // 清理资源
 onBeforeUnmount(() => {
