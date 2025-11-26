@@ -8,7 +8,7 @@ import (
 // @version 1.0
 // @description 团队任务管理平台API
 // @host localhost:8080
-// @BasePath /api
+// @BasePath
 func main() {
 	app.New().Run()
 }

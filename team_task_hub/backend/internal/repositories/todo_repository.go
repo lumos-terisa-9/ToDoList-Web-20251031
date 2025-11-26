@@ -71,12 +71,11 @@ func (r *TodoRepository) FindActiveInstances(userID uint) ([]models.Todo, error)
 // FindInstancesStartingInRange 查询在指定时间段内开始的所有任务
 func (r *TodoRepository) FindTodosStartingInRange(userID uint, startTime, endTime time.Time) ([]models.Todo, error) {
 	var todos []models.Todo
-
 	err := r.db.
 		Where("creator_user_id = ?", userID).
 		Where("status = 'pending'").
 		Where("has_children = false").
-		Where("start_time >= ? AND start_time <= ?", startTime, endTime).
+		Where("start_time >= ? AND start_time < ?", startTime, endTime).
 		Order("start_time ASC").
 		Find(&todos).Error
 	return todos, err

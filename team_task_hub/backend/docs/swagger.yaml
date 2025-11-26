@@ -1,4 +1,3 @@
-basePath: /api
 definitions:
   handlers.CancelCompletedTodoRequest:
     properties:

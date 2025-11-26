@@ -31,11 +31,13 @@ func TodayRange() (start, end time.Time) {
 	return start, end
 }
 
+// 创建某一天的时间范围
 func DayRange(data time.Time) (start, end time.Time) {
+	now := time.Now()
 	var dayStart time.Time
 	var dayEnd time.Time
-	dayStart = time.Date(data.Year(), data.Month(), data.Day(), 0, 0, 0, 0, data.Location())
-	dayEnd = start.Add(24 * time.Hour)
+	dayStart = time.Date(data.Year(), data.Month(), data.Day(), 0, 0, 0, 0, now.Location())
+	dayEnd = dayStart.Add(24 * time.Hour)
 	return dayStart, dayEnd
 }
 
