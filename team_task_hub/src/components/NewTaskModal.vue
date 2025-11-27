@@ -22,7 +22,8 @@
             <div class="option-row">
               <span>Start Time</span>
               <div class="date-time-display">
-                <input type="datetime-local" v-model="newEvent.start_time" class="datetime-input" required @change="validateRepeatTime">
+                <input v-if="newEvent.repeat_type === 'none'" type="datetime-local" v-model="newEvent.start_time" class="datetime-input" required @change="validateRepeatTime">
+                <input v-else type="time" v-model="newEvent.start_time_time" class="time-input" required>
                 <button @click="confirmStartTime" class="confirm-btn" title="确认开始时间">✓</button>
               </div>
             </div>
@@ -30,7 +31,8 @@
             <div class="option-row">
               <span>End Time</span>
               <div class="date-time-display">
-                <input type="datetime-local" v-model="newEvent.end_time" class="datetime-input" required @change="validateRepeatTime">
+                <input v-if="newEvent.repeat_type === 'none'" type="datetime-local" v-model="newEvent.end_time" class="datetime-input" required @change="validateRepeatTime">
+                <input v-else type="time" v-model="newEvent.end_time_time" class="time-input" required>
                 <button @click="confirmEndTime" class="confirm-btn" title="确认结束时间">✓</button>
               </div>
             </div>
@@ -47,12 +49,14 @@
             <div class="option-row repeat-row">
               <span>Repeat</span>
               <div class="repeat-options">
-                <select v-model="newEvent.repeat_type" class="repeat-type-select" @change="validateRepeatTime">
+                <select v-model="newEvent.repeat_type" class="repeat-type-select" @change="onRepeatTypeChange">
                   <option value="none">No Repeat</option>
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                 </select>
+
+                <!-- 每周重复 - 星期选择 -->
                 <div v-if="newEvent.repeat_type === 'weekly'" class="repeat-extra-options">
                   <div class="repeat-settings-row">
                     <div class="repeat-interval-group">
@@ -74,12 +78,38 @@
                     </button>
                   </div>
                 </div>
-                <div v-else-if="newEvent.repeat_type !== 'none'" class="repeat-extra-options">
+
+                <!-- 修改每月重复部分 -->
+                <div v-else-if="newEvent.repeat_type === 'monthly'" class="repeat-extra-options">
                   <div class="repeat-settings-row">
                     <div class="repeat-interval-group">
                       <span>Interval:</span>
                       <input type="number" v-model="newEvent.repeat_interval" min="0" max="12" class="interval-input">
-                      <span>{{ getIntervalUnit(newEvent.repeat_type) }}</span>
+                      <span>months</span>
+                    </div>
+                    <div class="repeat-end-date">
+                      <span>Ends:</span>
+                      <input type="date" v-model="newEvent.repeat_end_date" class="date-input">
+                    </div>
+                  </div>
+                  <div class="month-day-selector">
+                    <div class="month-days-grid">
+                      <button v-for="day in 31" :key="day"
+                              :class="{ 'selected-month-day': newEvent.monthDays.includes(day) }"
+                              @click="toggleMonthDay(day)">
+                        {{ day }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 每日重复 -->
+                <div v-else-if="newEvent.repeat_type === 'daily'" class="repeat-extra-options">
+                  <div class="repeat-settings-row">
+                    <div class="repeat-interval-group">
+                      <span>Interval:</span>
+                      <input type="number" v-model="newEvent.repeat_interval" min="0" max="365" class="interval-input">
+                      <span>days</span>
                     </div>
                     <div class="repeat-end-date">
                       <span>Ends:</span>
@@ -110,6 +140,7 @@
       <!-- 编辑模式下的按钮 -->
       <div v-if="isEditMode" class="modal-footer">
         <button @click="updateTodo" class="footer-btn update-btn">修改待办</button>
+        <button @click="cancelTodo" class="footer-btn cancel-btn">取消当日代办</button>
         <button @click="completeTodo" class="footer-btn complete-btn">结束待办</button>
       </div>
     </div>
@@ -185,14 +216,14 @@ function formatDateForDateInput(date) {
 }
 
 // 获取重复间隔单位
-function getIntervalUnit(repeatType) {
-  const units = {
-    daily: 'days',
-    weekly: 'weeks',
-    monthly: 'months'
-  }
-  return units[repeatType] || ''
-}
+// function getIntervalUnit(repeatType) {
+//   const units = {
+//     daily: 'days',
+//     weekly: 'weeks',
+//     monthly: 'months'
+//   }
+//   return units[repeatType] || ''
+// }
 
 // 验证重复任务的时间：如果选择了重复，开始和结束时间必须在同一天
 function validateRepeatTime() {
@@ -208,42 +239,87 @@ function validateRepeatTime() {
   }
 }
 
-// 初始化一个空的新日程对象 - 严格按照后端结构
+// 初始化一个空的新日程对象
 const initialEvent = {
   title: '',
   description: '',
   start_time: formatDateForInput(props.date),
   end_time: formatDateForInput(new Date(props.date.getTime() + 60 * 60 * 1000)),
+  start_time_time: '09:00',
+  end_time_time: '10:00',
   urgency: 'medium',
   category: 'personal',
   repeat_type: 'none',
   repeat_interval: 1,
-  repeat_end_date: formatDateForDateInput(new Date(props.date.getTime() + 30 * 24 * 60 * 60 * 1000)), // 默认30天后结束
-  repeatDays: [], // 前端使用的重复天数
+  repeat_end_date: formatDateForDateInput(new Date(props.date.getTime() + 30 * 24 * 60 * 60 * 1000)),
+  repeatDays: [], // 每周重复的星期
+  monthDays: [], // 每月重复的日期
   child_dates: [] // 子待办日期数组
 };
 
 const newEvent = ref({...initialEvent});
 
 // 监听 isVisible 变化，用于重置表单
+// 监听 isVisible 变化，用于重置表单
 watch(() => props.isVisible, (val) => {
   if (val) {
     if (props.isEditMode && props.editTodoData) {
       // 编辑模式：填充传入的数据
+      const editData = props.editTodoData;
+
+      // 处理时间格式
+      const startDate = new Date(editData.start_time);
+      const endDate = new Date(editData.end_time);
+
+      // 处理 monthly 数据
+      let monthDays = [];
+      if (editData.monthDays && Array.isArray(editData.monthDays)) {
+        monthDays = editData.monthDays;
+      } else if (editData.repeat_type === 'monthly') {
+        // 如果没有 monthDays 数据，使用开始日期的日期作为默认
+        const startDateForMonth = new Date(editData.start_time);
+        monthDays = [startDateForMonth.getDate()];
+      }
+
+      // 处理 repeatDays 数据
+      let repeatDays = [];
+      if (editData.repeatDays && Array.isArray(editData.repeatDays)) {
+        repeatDays = editData.repeatDays;
+      } else if (editData.repeat_type === 'weekly') {
+        // 如果没有 repeatDays 数据，使用开始日期的星期作为默认
+        const startDateForWeek = new Date(editData.start_time);
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        repeatDays = [dayNames[startDateForWeek.getDay()]];
+      }
+
       newEvent.value = {
-        ...props.editTodoData,
+        ...editData,
         // 确保日期格式正确
-        start_time: formatDateForInput(new Date(props.editTodoData.start_time)),
-        end_time: formatDateForInput(new Date(props.editTodoData.end_time)),
-        repeat_end_date: props.editTodoData.repeat_end_date ? formatDateForDateInput(new Date(props.editTodoData.repeat_end_date)) : ''
+        start_time: formatDateForInput(startDate),
+        end_time: formatDateForInput(endDate),
+        start_time_time: `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`,
+        end_time_time: `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`,
+        repeat_end_date: editData.repeat_end_date ? formatDateForDateInput(new Date(editData.repeat_end_date)) : '',
+        repeatDays: repeatDays,
+        monthDays: monthDays,
+        child_dates: editData.child_dates || []
       };
+
+      console.log('编辑模式数据加载完成:', {
+        repeat_type: newEvent.value.repeat_type,
+        repeatDays: newEvent.value.repeatDays,
+        monthDays: newEvent.value.monthDays
+      });
     } else {
       // 创建模式：重置表单
       newEvent.value = {
         ...initialEvent,
         start_time: formatDateForInput(props.date),
         end_time: formatDateForInput(new Date(props.date.getTime() + 60 * 60 * 1000)),
-        repeat_end_date: formatDateForDateInput(new Date(props.date.getTime() + 30 * 24 * 60 * 60 * 1000))
+        repeat_end_date: formatDateForDateInput(new Date(props.date.getTime() + 30 * 24 * 60 * 60 * 1000)),
+        // 设置默认的重复日期
+        monthDays: [props.date.getDate()],
+        repeatDays: ['Mon']
       };
     }
   }
@@ -257,6 +333,25 @@ watch(() => props.date, (newDate) => {
   }
 });
 
+// 重复类型改变时的处理
+function onRepeatTypeChange() {
+  if (newEvent.value.repeat_type !== 'none') {
+    // 保存时间部分
+    const startDate = new Date(newEvent.value.start_time);
+    const endDate = new Date(newEvent.value.end_time);
+
+    newEvent.value.start_time_time = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+    newEvent.value.end_time_time = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+  }
+
+  // 初始化重复设置
+  if (newEvent.value.repeat_type === 'weekly') {
+    newEvent.value.repeatDays = ['Mon'];
+  } else if (newEvent.value.repeat_type === 'monthly') {
+    newEvent.value.monthDays = [props.date.getDate()];
+  }
+}
+
 function toggleRepeatDay(day) {
   const index = newEvent.value.repeatDays.indexOf(day);
   if (index > -1) {
@@ -266,24 +361,124 @@ function toggleRepeatDay(day) {
   }
 }
 
+// 切换每月日期
+function toggleMonthDay(day) {
+  const index = newEvent.value.monthDays.indexOf(day);
+  if (index > -1) {
+    newEvent.value.monthDays.splice(index, 1);
+  } else {
+    newEvent.value.monthDays.push(day);
+  }
+  newEvent.value.monthDays.sort((a, b) => a - b);
+}
+
 function confirmStartTime() {
-  if (!newEvent.value.start_time) {
+  if (!newEvent.value.start_time && !newEvent.value.start_time_time) {
     alert('请先选择开始时间');
     return;
   }
-  console.log('开始时间已确认:', newEvent.value.start_time);
+  console.log('开始时间已确认:', newEvent.value.repeat_type === 'none' ? newEvent.value.start_time : newEvent.value.start_time_time);
 }
 
 function confirmEndTime() {
-  if (!newEvent.value.end_time) {
+  if (!newEvent.value.end_time && !newEvent.value.end_time_time) {
     alert('请先选择结束时间');
     return;
   }
-  console.log('结束时间已确认:', newEvent.value.end_time);
+  console.log('结束时间已确认:', newEvent.value.repeat_type === 'none' ? newEvent.value.end_time : newEvent.value.end_time_time);
 }
 
 function close() {
   emit('close');
+}
+
+const formatToFullISO = (datetimeLocalStr) => {
+  if (!datetimeLocalStr) return null;
+
+  // 如果已经是完整格式（包含时区），直接返回
+  if (datetimeLocalStr.includes('+') || datetimeLocalStr.includes('Z')) {
+    return datetimeLocalStr;
+  }
+
+  // 如果是 datetime-local 格式 (YYYY-MM-DDTHH:MM)，添加秒和时区
+  const date = new Date(datetimeLocalStr);
+  return date.toISOString(); // 这会转换为 UTC 时间，如 2025-11-28T17:00:00.000Z
+};
+
+function generateChildDates() {
+  if (newEvent.value.repeat_type === 'none') {
+    return [];
+  }
+
+  const childDates = [];
+  const today = new Date();
+  const repeatEndDate = newEvent.value.repeat_end_date ? new Date(newEvent.value.repeat_end_date) : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+
+  // 设置日期范围限制
+  const weeklyEndDate = new Date(today);
+  weeklyEndDate.setDate(today.getDate() + 7); // 未来7天
+
+  const monthlyEndDate = new Date(today);
+  monthlyEndDate.setMonth(today.getMonth() + 1); // 未来1个月
+
+  // let currentDate = new Date(today);
+
+  switch (newEvent.value.repeat_type) {
+    case 'daily':
+      // 只生成今天的一个日期
+      { const todayStr = today.toISOString().split('T')[0];
+      childDates.push(todayStr);
+      break; }
+
+    case 'weekly':
+      { const dayMap = { 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 0 };
+      const selectedDays = newEvent.value.repeatDays.map(day => dayMap[day]);
+
+      // 生成未来7天内选中的日期
+      for (let i = 0; i <= 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() + i);
+
+        // 取重复结束日期和7天限制的较小值
+        const endDate = repeatEndDate < weeklyEndDate ? repeatEndDate : weeklyEndDate;
+        if (checkDate > endDate) break;
+
+        if (selectedDays.includes(checkDate.getDay())) {
+          const dateStr = checkDate.toISOString().split('T')[0];
+          childDates.push(dateStr);
+        }
+      }
+      break; }
+
+    case 'monthly':
+      // 确保 monthDays 有值
+      { if (!newEvent.value.monthDays || newEvent.value.monthDays.length === 0) {
+        console.warn('monthly 重复未选择日期');
+        return [];
+      }
+
+      // 生成未来1个月内选中的日期
+      // 取重复结束日期和1个月限制的较小值
+      const monthlyEnd = repeatEndDate < monthlyEndDate ? repeatEndDate : monthlyEndDate;
+
+      for (let dayOffset = 0; dayOffset <= 31; dayOffset++) { // 最多31天
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() + dayOffset);
+
+        if (checkDate > monthlyEnd) break;
+
+        // 检查是否在选中的日期中
+        const dayOfMonth = checkDate.getDate();
+        if (newEvent.value.monthDays.includes(dayOfMonth)) {
+          const dateStr = checkDate.toISOString().split('T')[0];
+          childDates.push(dateStr);
+        }
+      }
+      break; }
+  }
+
+  console.log('生成的子日期:', childDates);
+  return childDates;
 }
 
 async function save() {
@@ -311,22 +506,48 @@ async function save() {
   }
 
   try {
-    // 准备发送到后端的数据 - 严格按照后端结构
+    // 生成子日期
+    const childDates = generateChildDates();
+    const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
     const taskData = {
       title: newEvent.value.title,
       description: newEvent.value.description || '',
-      start_time: new Date(newEvent.value.start_time).toISOString(),
-      end_time: new Date(newEvent.value.end_time).toISOString(),
+      start_time: formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`),
+      end_time: formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`),
       urgency: newEvent.value.urgency,
       category: newEvent.value.category,
       repeat_type: newEvent.value.repeat_type,
       repeat_interval: newEvent.value.repeat_interval,
-      repeat_end_date: newEvent.value.repeat_end_date ? new Date(newEvent.value.repeat_end_date).toISOString() : null,
-      child_dates: newEvent.value.child_dates || [],
-      creator_id: parseInt(currentUserId) // 添加创建者ID
+      repeat_end_date: newEvent.value.repeat_end_date ? formatToFullISO(newEvent.value.repeat_end_date + 'T00:00:00') : null,
+      child_dates: childDates
     }
 
-    console.log('发送任务数据:', taskData)
+    // 详细打印所有数据
+    console.log('=== 创建代办 - 完整数据打印 ===');
+    console.log('基础信息:');
+    console.log('  - title:', taskData.title);
+    console.log('  - description:', taskData.description);
+    console.log('  - start_time:', taskData.start_time);
+    console.log('  - end_time:', taskData.end_time);
+    console.log('  - urgency:', taskData.urgency);
+    console.log('  - category:', taskData.category);
+    console.log('重复设置:');
+    console.log('  - repeat_type:', taskData.repeat_type);
+    console.log('  - repeat_interval:', taskData.repeat_interval);
+    console.log('  - repeat_end_date:', taskData.repeat_end_date);
+    console.log('子日期数据 (child_dates):');
+    // 修改子日期数据的打印逻辑
+    console.log('子日期数据 (child_dates):');
+    if (childDates.length > 0) {
+      childDates.forEach((date, index) => {
+        console.log(`  [${index}] date: ${date}`);
+      });
+      console.log(`  共生成 ${childDates.length} 个子日期`);
+    } else {
+      console.log('  无子日期（非重复任务或重复设置无效）');
+    }
+    console.log('表单原始数据 (newEvent):', JSON.parse(JSON.stringify(newEvent.value)));
+    console.log('=== 数据打印结束 ===');
 
     const response = await fetch(`${API_BASE}/todos/createTodo`, {
       method: 'POST',
@@ -357,63 +578,146 @@ async function save() {
   }
 }
 
-// 修改待办：先删除再创建
+// 修改待办：先调用 cancel-with-children 再调用创建接口
 async function updateTodo() {
-  // 先删除原待办
-  const deleteSuccess = await deleteTodo(props.editTodoData.id);
-  if (deleteSuccess) {
-    // 再创建新待办
-    await save();
-  } else {
-    alert('删除原待办失败，无法修改');
+  if (!newEvent.value.title) {
+    alert('Title is required!');
+    return;
   }
-}
 
-// 删除待办 - 修复：使用正确的接口
-async function deleteTodo() {
   const token = getToken()
   if (!token) {
     alert('未找到认证令牌')
-    return false
+    return
   }
 
   try {
-    // 使用取消待办接口，传递必要的参数
-    const response = await fetch(`${API_BASE}/todos/cancel`, {
+    console.log('=== 修改待办 - 开始 ===');
+    console.log('=== 所有 props 数据 ===');
+    console.log('props.isVisible:', props.isVisible);
+    console.log('props.date:', props.date);
+    console.log('props.isEditMode:', props.isEditMode);
+    console.log('props.editTodoData:', props.editTodoData);
+
+    // 详细打印 editTodoData 的所有字段
+    if (props.editTodoData) {
+      console.log('=== props.editTodoData 详细字段 ===');
+      for (const key in props.editTodoData) {
+        console.log(`  ${key}:`, props.editTodoData[key]);
+      }
+    }
+
+    // 先保存原始数据到临时变量
+    const originalCreatedAt = props.editTodoData.created_at;
+    const originalTitle = props.editTodoData.title;
+    const originalDescription = props.editTodoData.description || "";
+
+    if (!originalCreatedAt) {
+      alert('无法获取任务的创建时间');
+      return;
+    }
+
+    // 第一步：调用 cancel-with-children 接口结束原任务
+    const cancelRequestBody = {
+      "createdAt": originalCreatedAt,
+      "description": originalDescription,
+      "title": originalTitle
+    };
+
+    console.log('=== 调用 cancel-with-children 接口 ===');
+    console.log('请求URL:', `${API_BASE}/todos/cancel-with-children`);
+    console.log('请求方法: POST');
+    console.log('请求头:', {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    console.log('请求体参数:', JSON.stringify(cancelRequestBody, null, 2));
+    console.log('cancelRequestBody 详细字段:');
+    console.log('  - createdAt:', cancelRequestBody.createdAt);
+    console.log('  - description:', cancelRequestBody.description);
+    console.log('  - title:', cancelRequestBody.title);
+
+    const cancelResponse = await fetch(`${API_BASE}/todos/cancel-with-children`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        title: props.editTodoData.title,
-        content: props.editTodoData.description || ''
-      })
-    })
+      body: JSON.stringify(cancelRequestBody)
+    });
 
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success) {
-        console.log('取消待办成功')
-        return true
-      } else {
-        alert(result.message || '取消待办失败')
-        return false
-      }
-    } else {
-      const errorResult = await response.json()
-      console.error('取消待办失败:', response.status, errorResult)
-      alert(`取消待办失败: ${errorResult.message || '未知错误'}`)
-      return false
+    const cancelResult = await cancelResponse.json();
+    console.log('cancel-with-children 响应状态:', cancelResponse.status);
+    console.log('cancel-with-children 响应结果:', cancelResult);
+
+    if (!cancelResponse.ok || !cancelResult.success) {
+      alert(cancelResult.message || '结束原任务失败');
+      return;
     }
+
+    // 第二步：调用创建代办接口创建新任务（编辑后的任务）
+    const childDates = generateChildDates();
+    const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
+    const createRequestBody = {
+      "category": newEvent.value.category || "personal",
+      "child_dates": generateChildDates(),
+      "description": newEvent.value.description || "",
+      "end_time": formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`),
+      "repeat_interval": newEvent.value.repeat_interval || 1,
+      "repeat_type": newEvent.value.repeat_type || "none",
+      "start_time": formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`),
+      "title": newEvent.value.title,
+      "urgency": newEvent.value.urgency || "medium"
+    };
+
+    console.log('=== 调用 createTodo 接口 ===');
+    console.log('请求URL:', `${API_BASE}/todos/createTodo`);
+    console.log('请求方法: POST');
+    console.log('请求头:', {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    console.log('请求体参数:', JSON.stringify(createRequestBody, null, 2));
+    console.log('createRequestBody 详细字段:');
+    console.log('  - category:', createRequestBody.category);
+    console.log('  - child_dates:', createRequestBody.child_dates);
+    console.log('  - description:', createRequestBody.description);
+    console.log('  - end_time:', createRequestBody.end_time);
+    console.log('  - repeat_end_date:', createRequestBody.repeat_end_date);
+    console.log('  - repeat_interval:', createRequestBody.repeat_interval);
+    console.log('  - repeat_type:', createRequestBody.repeat_type);
+    console.log('  - start_time:', createRequestBody.start_time);
+    console.log('  - title:', createRequestBody.title);
+    console.log('  - urgency:', createRequestBody.urgency);
+
+    const createResponse = await fetch(`${API_BASE}/todos/createTodo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(createRequestBody)
+    });
+
+    const createResult = await createResponse.json();
+    console.log('createTodo 响应状态:', createResponse.status);
+    console.log('createTodo 响应结果:', createResult);
+
+    if (createResponse.ok && createResult.success) {
+      console.log('=== 修改待办 - 成功 ===');
+      emit('update', { ...newEvent.value, id: createResult.data?.id })
+      emit('close')
+    } else {
+      alert(createResult.message || '创建新任务失败');
+    }
+
   } catch (error) {
-    console.error('调用取消待办接口失败:', error)
-    alert('取消待办失败，请检查网络连接')
-    return false
+    console.error('编辑任务失败:', error);
+    alert('编辑任务失败，请检查网络连接');
   }
 }
 
-// 完成待办 - 修复：传递正确的参数
+// 结束待办 - 使用 cancel-with-children 接口
 async function completeTodo() {
   const token = getToken()
   if (!token) {
@@ -422,42 +726,134 @@ async function completeTodo() {
   }
 
   try {
-    // 根据错误信息，需要传递这些必填字段
-    const completeData = {
-      title: props.editTodoData.title,
-      description: props.editTodoData.description || 'No description',
-      start_time: props.editTodoData.start_time,
-      end_time: props.editTodoData.end_time
+    console.log('=== 结束待办 - 开始 ===');
+    console.log('=== 所有 props 数据 ===');
+    console.log('props.isVisible:', props.isVisible);
+    console.log('props.date:', props.date);
+    console.log('props.isEditMode:', props.isEditMode);
+    console.log('props.editTodoData:', props.editTodoData);
+
+    // 详细打印 editTodoData 的所有字段
+    if (props.editTodoData) {
+      console.log('=== props.editTodoData 详细字段 ===');
+      for (const key in props.editTodoData) {
+        console.log(`  ${key}:`, props.editTodoData[key]);
+      }
     }
 
-    console.log('完成待办参数:', completeData)
+    // 使用正确的 created_at 字段
+    const createdAt = props.editTodoData.created_at;
 
-    const response = await fetch(`${API_BASE}/todos/complete`, {
+    if (!createdAt) {
+      alert('无法获取任务的创建时间');
+      return;
+    }
+
+    // 调用 cancel-with-children 接口结束代办
+    const requestBody = {
+      "createdAt": createdAt, // 使用 created_at 字段
+      "description": props.editTodoData.description || "",
+      "title": props.editTodoData.title
+    };
+
+    console.log('=== 调用 cancel-with-children 接口 ===');
+    console.log('请求URL:', `${API_BASE}/todos/cancel-with-children`);
+    console.log('请求方法: POST');
+    console.log('请求头:', {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    console.log('请求体参数:', JSON.stringify(requestBody, null, 2));
+    console.log('requestBody 详细字段:');
+    console.log('  - createdAt:', requestBody.createdAt);
+    console.log('  - description:', requestBody.description);
+    console.log('  - title:', requestBody.title);
+
+    const response = await fetch(`${API_BASE}/todos/cancel-with-children`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(completeData)
-    })
+      body: JSON.stringify(requestBody)
+    });
 
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success) {
-        console.log('完成任务成功')
-        emit('complete')
-        emit('close')
-      } else {
-        alert(result.message || '完成任务失败')
-      }
+    const result = await response.json();
+    console.log('cancel-with-children 响应状态:', response.status);
+    console.log('cancel-with-children 响应结果:', result);
+
+    if (response.ok && result.success) {
+      console.log('=== 结束待办 - 成功 ===');
+      emit('complete')
+      emit('close')
     } else {
-      const errorResult = await response.json()
-      console.error('完成任务失败:', response.status, errorResult)
-      alert(`完成任务失败: ${errorResult.message || '未知错误'}`)
+      alert(result.message || '结束代办失败');
     }
+
   } catch (error) {
-    console.error('调用完成任务接口失败:', error)
-    alert('完成任务失败，请检查网络连接')
+    console.error('调用结束代办接口失败:', error);
+    alert('结束代办失败，请检查网络连接');
+  }
+}
+
+// 取消待办 - 调用 /api/todos/cancel 接口
+async function cancelTodo() {
+  const token = getToken()
+  if (!token) {
+    alert('未找到认证令牌')
+    return
+  }
+
+  try {
+    console.log('=== 取消待办 - 开始 ===');
+    console.log('取消的任务数据 (props.editTodoData):', props.editTodoData);
+
+    // 调用 cancel 接口取消待办
+    const requestBody = {
+      "description": props.editTodoData.description || "",
+      "end_time": props.editTodoData.end_time,
+      "start_time": props.editTodoData.start_time,
+      "title": props.editTodoData.title
+    };
+
+    console.log('=== 调用 cancel 接口 ===');
+    console.log('请求URL:', `${API_BASE}/todos/cancel`);
+    console.log('请求方法: POST');
+    console.log('请求头:', {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    console.log('请求体参数:', JSON.stringify(requestBody, null, 2));
+    console.log('requestBody 详细字段:');
+    console.log('  - description:', requestBody.description);
+    console.log('  - end_time:', requestBody.end_time);
+    console.log('  - start_time:', requestBody.start_time);
+    console.log('  - title:', requestBody.title);
+
+    const response = await fetch(`${API_BASE}/todos/cancel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const result = await response.json();
+    console.log('cancel 响应状态:', response.status);
+    console.log('cancel 响应结果:', result);
+
+    if (response.ok && result.success) {
+      console.log('=== 取消待办 - 成功 ===');
+      emit('complete') // 使用 complete 事件刷新列表
+      emit('close')
+    } else {
+      alert(result.message || '取消待办失败');
+    }
+
+  } catch (error) {
+    console.error('调用取消待办接口失败:', error);
+    alert('取消待办失败，请检查网络连接');
   }
 }
 </script>
@@ -603,6 +999,13 @@ async function completeTodo() {
   flex-grow: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.modal-body-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .modal-body {
@@ -677,6 +1080,17 @@ async function completeTodo() {
   padding: 5px;
   font-size: 0.9rem;
   outline: none;
+}
+
+.time-input {
+  background: #3a3a3c;
+  color: #0a84ff;
+  border: 1px solid #555;
+  border-radius: 5px;
+  padding: 5px;
+  font-size: 0.9rem;
+  outline: none;
+  width: 120px;
 }
 
 .date-input {
@@ -796,6 +1210,41 @@ async function completeTodo() {
 }
 
 .day-selector button.selected-day {
+  background-color: #0a84ff;
+  color: white;
+  border-color: #0a84ff;
+}
+
+/* 修改每月日期选择器对齐 */
+.month-day-selector {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end; /* 右对齐 */
+  margin: 10px 0; /* 上下间隙 */
+  padding: 0 15px; /* 左右间隙 */
+}
+
+.month-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  max-width: 280px;
+}
+
+.month-days-grid button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2c2c2e;
+  color: #8e8e93;
+  border: 1px solid #444;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.month-days-grid button.selected-month-day {
   background-color: #0a84ff;
   color: white;
   border-color: #0a84ff;

@@ -16,36 +16,53 @@
 
     <div class="task-list-container">
       <ul v-if="filteredTasks.length > 0" class="task-list">
-        <li v-for="task in filteredTasks" :key="task.id" class="task-item">
+        <li v-for="task in filteredTasks" :key="task.id" class="task-item"
+            :class="{ 'cancelled': task.status === 'cancelled' }">
           <div class="task-checkbox"
-               :class="{ 'completed': task.completed }"
-               @click.stop="toggleTaskComplete(task)">
-            <span v-if="task.completed" class="checkmark">✓</span>
+               :class="{
+             'completed': task.status === 'completed',
+             'cancelled': task.status === 'cancelled',
+             'clickable': displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled'
+           }"
+               @click.stop="displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled' ? toggleTaskComplete(task) : null">
+            <span v-if="task.status === 'completed'" class="checkmark">✓</span>
+            <span v-else-if="task.status === 'cancelled'" class="cancel-mark">×</span>
           </div>
-          <span class="task-text" :class="{ 'completed': task.completed }"
+          <span class="task-text"
+                :class="{
+              'completed': task.status === 'completed',
+              'cancelled': task.status === 'cancelled'
+            }"
                 @click="openEditModal(task)">
-            {{ task.title }}
-          </span>
+        {{ task.title }}
+      </span>
         </li>
       </ul>
-      <p v-else class="no-tasks">🎉 今天没有待办事项！</p>
+      <p v-else class="no-tasks">
+        {{ getEmptyMessage() }}
+      </p>
     </div>
 
-    <!-- 即将开始/结束的代办 -->
-    <div class="upcoming-tasks-section">
+    <!-- 修改即将开始/结束的代办部分 -->
+    <div v-if="displayMode === 'today'" class="upcoming-tasks-section">
       <h4 class="upcoming-title">即将开始/结束的代办</h4>
       <div class="upcoming-list-container">
-        <ul v-if="upcomingTasks.length > 0" class="upcoming-list">
-          <li v-for="task in upcomingTasks" :key="task.id" class="upcoming-item">
+        <ul v-if="filteredUpcomingTasks.length > 0" class="upcoming-list">
+          <li v-for="task in filteredUpcomingTasks" :key="task.id" class="upcoming-item">
             <div class="upcoming-checkbox"
-                 :class="{ 'completed': task.completed }"
-                 @click.stop="toggleUpcomingTaskComplete(task)">
-              <span v-if="task.completed" class="upcoming-checkmark">✓</span>
+                 :class="{
+                   'completed': task.status === 'completed',
+                   'non-clickable': true
+                 }">
+              <span v-if="task.status === 'completed'" class="upcoming-checkmark">✓</span>
             </div>
-            <span class="upcoming-text" :class="{ 'completed': task.completed }"
+            <span class="upcoming-text" :class="{ 'completed': task.status === 'completed' }"
                   @click="openEditModal(task)">
-              {{ task.title }}
-            </span>
+          {{ task.title }}
+        </span>
+            <!-- 修改标识符号显示 -->
+            <span v-if="task.isComingStart" class="tag new-tag">new</span>
+            <span v-else-if="task.isComingEnd" class="tag alert-tag">!!</span>
           </li>
         </ul>
         <p v-else class="no-upcoming-tasks">暂无即将开始/结束的代办</p>
@@ -60,13 +77,13 @@
     <!-- 错误状态 -->
     <div v-if="error" class="error-state">
       <p>暂时无法加载待办事项</p>
-      <button @click="loadTasksFromAPI" class="retry-btn">重试</button>
+      <button @click="refreshFromAPI" class="retry-btn">重试</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, defineProps, defineEmits, onMounted, computed } from 'vue';
+import { ref, defineProps, defineEmits, onMounted, computed } from 'vue';
 
 const emit = defineEmits(['request-modal', 'add-task-object', 'refresh-todos', 'edit-task']);
 
@@ -102,6 +119,20 @@ const upcomingTasks = ref([]); // 即将开始/结束的代办
 const loading = ref(false);
 const error = ref(null);
 
+// 获取空状态消息
+function getEmptyMessage() {
+  switch (props.displayMode) {
+    case 'today':
+      return '🎉 今天没有待办事项！';
+    case 'future':
+      return '🎉 该日期没有开始的待办事项';
+    case 'completed':
+      return '🎉 该日期没有已完成的事项';
+    default:
+      return '🎉 没有待办事项！';
+  }
+}
+
 // 获取token的通用函数
 function getToken() {
   let token = localStorage.getItem('token')
@@ -123,23 +154,55 @@ function getToken() {
   return token
 }
 
-// 根据标题过滤任务：个人待办只显示personal类别，组织待办显示非personal类别
+// 根据创建者ID过滤任务：个人待办显示个人创建的任务，组织待办显示组织创建的任务
 const filteredTasks = computed(() => {
   // 优先使用外部传入的数据，如果没有则使用apiTasks
-  const tasksToFilter = externalTasks.value;
+  const tasksToFilter = externalTasks.value.length > 0 ? externalTasks.value : apiTasks.value;
 
   console.log('当前显示模式:', props.displayMode, '任务数量:', tasksToFilter.length);
   console.log('任务数据:', tasksToFilter);
 
   if (props.title === '个人待办') {
-    return tasksToFilter.filter(task => task.category === 'personal');
+    // 个人待办：creator_organ_id为0且creator_user_id不为0
+    return tasksToFilter.filter(task =>
+      task.creator_organ_id === 0 && task.creator_user_id !== 0
+    );
   } else if (props.title === '组织待办') {
-    return tasksToFilter.filter(task => task.category !== 'personal');
+    // 组织待办：creator_organ_id不为0
+    return tasksToFilter.filter(task =>
+      task.creator_organ_id !== 0
+    );
   }
   return tasksToFilter;
 });
 
-// 从API加载任务
+// 根据创建者ID过滤并排序即将开始/结束的任务
+const filteredUpcomingTasks = computed(() => {
+  let filteredTasks = [];
+
+  if (props.title === '个人待办') {
+    // 个人待办：creator_organ_id为0且creator_user_id不为0
+    filteredTasks = upcomingTasks.value.filter(task =>
+      task.creator_organ_id === 0 && task.creator_user_id !== 0
+    );
+  } else if (props.title === '组织待办') {
+    // 组织待办：creator_organ_id不为0
+    filteredTasks = upcomingTasks.value.filter(task =>
+      task.creator_organ_id !== 0
+    );
+  } else {
+    filteredTasks = upcomingTasks.value;
+  }
+
+  // 按时间排序：时间近的排在上面
+  return filteredTasks.sort((a, b) => {
+    const timeA = new Date(a.sortTime || a.startTime || a.endTime || a.createdAt);
+    const timeB = new Date(b.sortTime || b.startTime || b.endTime || b.createdAt);
+    return timeA - timeB;
+  });
+});
+
+// 从API加载任务（现在主要用于刷新）
 async function loadTasksFromAPI() {
   const token = getToken()
   if (!token) {
@@ -167,9 +230,6 @@ async function loadTasksFromAPI() {
           ...task,
           completed: task.completed || false
         }))
-
-        // 暂时将即将开始/结束的代办设置为空数组，后续可以添加逻辑
-        upcomingTasks.value = [];
       } else {
         console.warn('获取待办返回数据格式异常:', result)
       }
@@ -186,6 +246,129 @@ async function loadTasksFromAPI() {
   }
 }
 
+// 完成任务
+async function completeTask(task) {
+  const token = getToken()
+  if (!token) {
+    console.error('未找到认证令牌')
+    return false
+  }
+
+  try {
+    // 直接使用点击的任务数据
+    const requestBody = {
+      "description": task.description || task.content || "",
+      "end_time": task.end_time || task.endTime || "",
+      "start_time": task.start_time || task.startTime || "",
+      "title": task.title
+    };
+
+    console.log('完成任务请求参数:', requestBody);
+
+    const response = await fetch(`${API_BASE}/todos/complete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    const result = await response.json();
+    console.log('完成任务响应:', result);
+
+    if (response.ok && result.success) {
+      console.log('完成任务成功:', result.message);
+      return true;
+    } else {
+      console.error('完成任务失败:', result.message);
+      return false;
+    }
+  } catch (error) {
+    console.error('调用完成任务接口失败:', error);
+    return false;
+  }
+}
+
+// 取消完成任务
+async function cancelCompletedTask(task) {
+  const token = getToken()
+  if (!token) {
+    console.error('未找到认证令牌')
+    return false
+  }
+
+  try {
+    // 直接使用点击的任务数据
+    const requestBody = {
+      "description": task.description || task.content || "",
+      "end_time": task.end_time || task.endTime || "",
+      "start_time": task.start_time || task.startTime || "",
+      "title": task.title
+    };
+
+    console.log('取消完成任务请求参数:', requestBody);
+
+    const response = await fetch(`${API_BASE}/todos/cancel-completedTodo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    const result = await response.json();
+    console.log('取消完成任务响应:', result);
+
+    if (response.ok && result.success) {
+      console.log('取消完成任务成功:', result.message);
+      return true;
+    } else {
+      console.error('取消完成任务失败:', result.message);
+      return false;
+    }
+  } catch (error) {
+    console.error('调用取消完成任务接口失败:', error);
+    return false;
+  }
+}
+
+// 切换任务完成状态
+async function toggleTaskComplete(task) {
+  console.log('切换任务状态:', task.title, '当前状态:', task.status);
+  console.log('任务详细信息:', task);
+
+  // 根据status字段判断当前状态
+  const originalStatus = task.status;
+  const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+  task.status = newStatus;
+
+  try {
+    let success = false;
+    if (newStatus === 'completed') {
+      // 如果新状态是完成，调用完成任务接口
+      success = await completeTask(task);
+    } else {
+      // 如果新状态是未完成，调用取消完成任务接口
+      success = await cancelCompletedTask(task);
+    }
+
+    if (!success) {
+      // 如果接口调用失败，回退到原始状态
+      task.status = originalStatus;
+      console.log('接口调用失败，状态已回退');
+    } else {
+      // 接口调用成功，但不刷新整个列表
+      console.log('任务状态更新成功，保持显示');
+    }
+  } catch (error) {
+    console.error('切换任务状态失败:', error);
+    // 如果接口调用失败，回退到原始状态
+    task.status = originalStatus;
+  }
+}
+
 // 添加更新任务的方法
 function updateTasks(tasks) {
   console.log('更新任务数据:', tasks);
@@ -199,17 +382,13 @@ function updateTasks(tasks) {
   console.log('更新后的externalTasks:', externalTasks.value);
 }
 
-// 切换任务完成状态
-function toggleTaskComplete(task) {
-  console.log('切换任务状态:', task.title, '当前状态:', task.completed);
-  task.completed = !task.completed;
-  console.log('新状态:', task.completed);
-}
-
-// 切换即将开始/结束任务的完成状态
-function toggleUpcomingTaskComplete(task) {
-  console.log('切换即将开始任务状态:', task.title, '当前状态:', task.completed);
-  task.completed = !task.completed;
+// 更新即将开始的任务
+function updateUpcomingTasks(tasks) {
+  console.log('更新即将开始任务数据:', tasks);
+  upcomingTasks.value = tasks.map(task => ({
+    ...task,
+    completed: task.completed || false
+  }));
 }
 
 // 打开编辑模态框
@@ -234,16 +413,12 @@ function refreshFromAPI() {
 
 defineExpose({
   refreshFromAPI,
-  updateTasks
+  updateTasks,
+  updateUpcomingTasks
 })
 
 onMounted(() => {
-  loadTasksFromAPI()
-})
-
-// 监听日期变化重新加载
-watch(() => props.date, () => {
-  loadTasksFromAPI()
+  // 初始加载，现在由父组件控制数据
 })
 </script>
 
@@ -540,5 +715,108 @@ watch(() => props.date, () => {
 
 .retry-btn:hover {
   background: #45b7af;
+}
+
+.tag {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.new-tag {
+  background-color: #007bff;
+  color: white;
+}
+
+.alert-tag {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* 确保代办项布局正确 */
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.upcoming-text {
+  flex: 1;
+}
+
+/* 可点击的复选框样式 */
+.task-checkbox.clickable {
+  cursor: pointer;
+}
+
+.task-checkbox.clickable:hover {
+  background-color: #f0f0f0;
+}
+
+/* 不可点击的复选框样式 */
+.task-checkbox:not(.clickable),
+.upcoming-checkbox.non-clickable {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 取消待办样式 */
+.task-item.cancelled {
+  opacity: 0.6;
+}
+
+.task-checkbox.cancelled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.task-text.cancelled {
+  color: #6c757d;
+  text-decoration: line-through;
+}
+
+.cancel-mark {
+  color: white;
+  font-weight: bold;
+}
+
+/* 模态框底部按钮布局 */
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.footer-btn {
+  flex: 1;
+  margin: 0 4px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.update-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #ff9500; /* 橙色 */
+  color: white;
+}
+
+.complete-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.footer-btn:hover {
+  opacity: 0.9;
 }
 </style>

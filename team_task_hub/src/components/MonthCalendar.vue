@@ -44,14 +44,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-
+import { ref, computed, defineEmits, defineProps } from 'vue'
+const API_BASE = 'http://localhost:8080/api'
 const props = defineProps({
   modelValue: { type: Date, required: true }
 })
-const emit = defineEmits(['update:modelValue', 'select', 'date-click'])
+const emit = defineEmits(['update:modelValue', 'select', 'date-click', 'load-tasks'])
 
-// 脚本 (Logic) 部分与你原来的一致，无需修改
 const current = ref(new Date(props.modelValue))
 // 将星期表头改为英文大写以匹配图片
 const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
@@ -89,38 +88,571 @@ const weeks = computed(() => {
   return result
 })
 
+// 获取token的通用函数
+function getToken() {
+  let token = localStorage.getItem('token')
+  if (token && token.startsWith('{')) {
+    try {
+      const tokenData = JSON.parse(token)
+      if (tokenData.data && tokenData.data.access_token) {
+        token = tokenData.data.access_token
+      } else if (tokenData.access_token) {
+        token = tokenData.access_token
+      } else if (tokenData.token) {
+        token = tokenData.token
+      }
+    } catch (error) {
+      console.error('解析token失败:', error)
+      return null
+    }
+  }
+  return token
+}
+
+// 修复时区问题：将日期转换为本地日期字符串 (YYYY-MM-DD)
+function formatDateToLocalString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// 清除所有缓存
+function clearAllCache() {
+  // 只清除当前日期的缓存，保留其他缓存键（如token等）
+  localStorage.removeItem('current_date_tasks');
+  localStorage.removeItem('current_date_info');
+  console.log('已清除所有任务缓存');
+}
+
+// 缓存当前日期任务数据
+function cacheCurrentDateTasks(date, tasks, upcomingTasks, type) {
+  const cacheData = {
+    date: date.toISOString(),
+    tasks: tasks,
+    upcomingTasks: upcomingTasks || [],
+    type: type,
+    timestamp: new Date().getTime()
+  };
+  localStorage.setItem('current_date_tasks', JSON.stringify(cacheData));
+  localStorage.setItem('current_date_info', JSON.stringify({
+    date: date.toISOString(),
+    type: type,
+    timestamp: new Date().getTime()
+  }));
+  console.log(`已缓存${type}任务数据:`, cacheData);
+}
+
+// 检查是否是今天之后的日期
+function isAfterToday(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const compareDate = new Date(date);
+  compareDate.setHours(0, 0, 0, 0);
+  return compareDate > today;
+}
+
+// 加载今日待办
+async function loadTodayTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用今日待办接口...');
+    const response = await fetch(`${API_BASE}/todos/todayTodos`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('今日待办:', result);
+
+      if (result.success && result.todos) {
+        return result.todos;
+      }
+    } else {
+      console.error('获取今日待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用今日待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载某一天开始的待办
+async function loadOneDayTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    // 修复时区问题：使用本地日期格式
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用某一天开始的待办接口...', dateStr);
+    // 在 loadOneDayTodos 函数中添加
+    const response = await fetch(`${API_BASE}/todos/Get-OneDayTodos?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('某一天开始的待办:', result);
+      if (result.success && result.todos) {
+        console.log('某一天开始的待办API返回:', result);
+        console.log('todos数据:', result.todos);
+        return result.todos;
+      }
+    } else {
+      console.error('获取某一天开始的待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用某一天开始的待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载已完成待办
+async function loadCompletedTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    // 修复时区问题：使用本地日期格式
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用已完成待办接口，日期:', dateStr);
+
+    const response = await fetch(`${API_BASE}/todos/completed_todo?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('已完成待办:', result);
+      if (result.success && result.todos) {
+        console.log('已完成待办API返回:', result);
+        console.log('todos数据:', result.todos);
+        return result.todos;
+      }
+    } else {
+      console.error('获取已完成待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用已完成待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载即将开始的待办
+async function loadComingStartTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用即将开始的待办接口...');
+    const response = await fetch(`${API_BASE}/todos/coming-startTodos`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('即将开始的待办:', result);
+      if (result.success && result.todos) {
+        return result.todos;
+      }
+    } else {
+      console.error('获取即将开始的待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用即将开始的待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载即将结束的待办
+async function loadComingEndTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用即将结束的待办接口...');
+    const response = await fetch(`${API_BASE}/todos/coming-endTodos`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('即将结束的待办:', result);
+      if (result.success && result.todos) {
+        return result.todos;
+      }
+    } else {
+      console.error('获取即将结束的待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用即将结束的待办接口失败:', error);
+  }
+  return null;
+}
+
 function prevMonth() {
-  current.value = new Date(year.value, month.value - 1, 1)
+  current.value = new Date(year.value, month.value - 1, 1);
 }
+
 function nextMonth() {
-  current.value = new Date(year.value, month.value + 1, 1)
+  current.value = new Date(year.value, month.value + 1, 1);
 }
+
 function isToday(date) {
-  if (isNaN(date)) return false
-  const t = new Date()
+  if (isNaN(date)) return false;
+  const t = new Date();
   return date.getFullYear() === t.getFullYear() &&
     date.getMonth() === t.getMonth() &&
-    date.getDate() === t.getDate()
+    date.getDate() === t.getDate();
 }
+
 function isSelected(date) {
-  if (isNaN(date)) return false
-  const d = props.modelValue
+  if (isNaN(date)) return false;
+  const d = props.modelValue;
   return date.getFullYear() === d.getFullYear() &&
     date.getMonth() === d.getMonth() &&
-    date.getDate() === d.getDate()
+    date.getDate() === d.getDate();
 }
-function selectDate(date) {
-  if (isNaN(date)) return
+
+async function selectDate(date) {
+  if (isNaN(date)) return;
 
   // 更新选中的日期
-  emit('update:modelValue', date)
-  emit('select', date)
+  emit('update:modelValue', date);
+  emit('select', date);
 
   // 触发日期点击事件，传递日期和是否是今天的标志
-  emit('date-click', {
+  const dateInfo = {
     date: date,
     isToday: isToday(date)
-  })
+  };
+  emit('date-click', dateInfo);
+
+  // 清除之前的所有缓存
+  clearAllCache();
+
+  // 根据日期类型加载任务
+  let tasks = [];
+  let upcomingTasks = [];
+  let type = '';
+
+  if (dateInfo.isToday) {
+    // 今天：加载今日待办 + 已完成待办 + 即将开始/结束的待办
+    console.log('加载今日数据');
+    type = 'today';
+
+    // 同时调用今日待办和已完成待办接口
+    const todayTodos = await loadTodayTodos(date) || [];
+    const completedTodos = await loadCompletedTodos(date) || [];
+
+    // 合并今日待办和已完成待办
+    tasks = [...todayTodos, ...completedTodos];
+
+    const comingStart = await loadComingStartTodos() || [];
+    const comingEnd = await loadComingEndTodos() || [];
+
+    // 处理重复任务：如果任务同时出现在即将开始和即将结束中，优先标记为即将开始
+    const comingStartIds = new Set(comingStart.map(task => task.id));
+
+    // 过滤掉在即将开始中已存在的即将结束任务
+    const uniqueComingEnd = comingEnd.filter(task => !comingStartIds.has(task.id));
+
+    // 为即将开始的任务添加标识
+    const comingStartWithTag = comingStart.map(task => ({
+      ...task,
+      isComingStart: true,
+      isComingEnd: false,
+      // 添加排序字段：使用开始时间或结束时间
+      sortTime: task.startTime || task.createdAt
+    }));
+
+    // 为即将结束的任务添加标识
+    const comingEndWithTag = uniqueComingEnd.map(task => ({
+      ...task,
+      isComingStart: false,
+      isComingEnd: true,
+      // 添加排序字段：使用结束时间
+      sortTime: task.endTime || task.createdAt
+    }));
+
+    // 合并并按时间排序
+    upcomingTasks = [...comingStartWithTag, ...comingEndWithTag]
+      .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
+  } else if (isAfterToday(date)) {
+    // 今天之后：加载某一天开始的待办
+    console.log('加载未来日期数据');
+    type = 'future';
+    tasks = await loadOneDayTodos(date) || [];
+  } else {
+    // 今天之前：加载已完成待办 + 过期待办
+    console.log('加载过去日期数据 - 使用已完成待办和过期待办接口');
+    type = 'completed';
+
+    // 同时调用已完成待办和过期待办接口
+    const completedTodos = await loadCompletedTodos(date) || [];
+    const expiredTodos = await loadOneDayExpiredTodos(date) || [];
+
+    console.log('已完成待办数量:', completedTodos.length);
+    console.log('过期待办数量:', expiredTodos.length);
+    console.log('已完成待办:', completedTodos);
+    console.log('过期待办:', expiredTodos);
+
+    // 合并两个接口的结果并去重
+    const allTodosMap = new Map();
+
+    // 先添加已完成待办（优先级高）
+    completedTodos.forEach(todo => {
+      allTodosMap.set(todo.id, {
+        ...todo,
+        isExpired: false,
+        status: 'completed' // 确保状态为已完成
+      });
+    });
+
+    // 添加过期待办，如果已存在则跳过（因为已完成优先级更高）
+    expiredTodos.forEach(todo => {
+      if (!allTodosMap.has(todo.id)) {
+        // 只出现在过期列表中，保持过期状态
+        allTodosMap.set(todo.id, {
+          ...todo,
+          isExpired: true,
+          status: todo.status || 'expired' // 设置为过期状态
+        });
+      } else {
+        // 如果任务同时出现在两个列表中，标记为已完成（覆盖过期状态）
+        console.log('任务同时出现在已完成和过期列表中，标记为已完成:', todo.title);
+        allTodosMap.set(todo.id, {
+          ...allTodosMap.get(todo.id),
+          isExpired: false,
+          status: 'completed' // 强制设置为已完成状态
+        });
+      }
+    });
+
+    tasks = Array.from(allTodosMap.values());
+    console.log('合并后的任务数量:', tasks.length);
+    console.log('合并后的任务:', tasks);
+  }
+
+  // 缓存当前日期数据
+  cacheCurrentDateTasks(date, tasks, upcomingTasks, type);
+
+  // 将任务数据传递给父组件
+  emit('load-tasks', {
+    date: date,
+    tasks: tasks,
+    upcomingTasks: upcomingTasks,
+    type: type
+  });
+}
+
+// 暴露方法给父组件
+defineExpose({
+  clearCache: clearAllCache,
+  reloadDate: async (date) => {
+    const token = getToken();
+    if (!token) {
+      console.error('未找到认证令牌');
+      return;
+    }
+
+    // 先检查并更新代办
+    await checkAndUpdateTodos(token);
+
+    // 清除缓存
+    clearAllCache();
+
+    // 重新加载任务
+    let tasks = [];
+    let upcomingTasks = [];
+    let type = '';
+
+    if (isToday(date)) {
+      type = 'today';
+      tasks = await loadTodayTodos(date) || [];
+      const comingStart = await loadComingStartTodos() || [];
+      const comingEnd = await loadComingEndTodos() || [];
+
+      // 处理重复任务：如果任务同时出现在即将开始和即将结束中，优先标记为即将开始
+      const comingStartIds = new Set(comingStart.map(task => task.id));
+      const uniqueComingEnd = comingEnd.filter(task => !comingStartIds.has(task.id));
+
+      const comingStartWithTag = comingStart.map(task => ({
+        ...task,
+        isComingStart: true,
+        isComingEnd: false,
+        sortTime: task.startTime || task.createdAt
+      }));
+
+      const comingEndWithTag = uniqueComingEnd.map(task => ({
+        ...task,
+        isComingStart: false,
+        isComingEnd: true,
+        sortTime: task.endTime || task.createdAt
+      }));
+
+      upcomingTasks = [...comingStartWithTag, ...comingEndWithTag]
+        .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
+    } else if (isAfterToday(date)) {
+      type = 'future';
+      tasks = await loadOneDayTodos(date) || [];
+    } else {
+      type = 'completed';
+
+      // 同时调用已完成待办和过期待办接口
+      const completedTodos = await loadCompletedTodos(date) || [];
+      const expiredTodos = await loadOneDayExpiredTodos(date) || [];
+
+      console.log('已完成待办数量:', completedTodos.length);
+      console.log('过期待办数量:', expiredTodos.length);
+      console.log('已完成待办:', completedTodos);
+      console.log('过期待办:', expiredTodos);
+
+      // 合并两个接口的结果并去重
+      const allTodosMap = new Map();
+
+      // 先添加已完成待办（优先级高）
+      completedTodos.forEach(todo => {
+        allTodosMap.set(todo.id, {
+          ...todo,
+          isExpired: false,
+          status: 'completed'
+        });
+      });
+
+      // 添加过期待办，如果已存在则跳过
+      expiredTodos.forEach(todo => {
+        if (!allTodosMap.has(todo.id)) {
+          allTodosMap.set(todo.id, {
+            ...todo,
+            isExpired: true,
+            status: todo.status || 'expired'
+          });
+        } else {
+          console.log('任务同时出现在已完成和过期列表中，标记为已完成:', todo.title);
+          allTodosMap.set(todo.id, {
+            ...allTodosMap.get(todo.id),
+            isExpired: false,
+            status: 'completed'
+          });
+        }
+      });
+
+      tasks = Array.from(allTodosMap.values());
+      console.log('合并后的任务数量:', tasks.length);
+      console.log('合并后的任务:', tasks);
+    }
+
+    // 缓存数据
+    cacheCurrentDateTasks(date, tasks, upcomingTasks, type);
+
+    // 将任务数据传递给父组件
+    emit('load-tasks', {
+      date: date,
+      tasks: tasks,
+      upcomingTasks: upcomingTasks,
+      type: type
+    });
+
+    return { tasks, upcomingTasks };
+  }
+});
+
+// 检查并更新代办（在 MonthCalendar.vue 中也添加）
+async function checkAndUpdateTodos(token) {
+  try {
+    // 检查是否需要更新
+    const lastUpdate = localStorage.getItem('last_todo_update');
+    const today = new Date().toDateString();
+
+    // 如果没有更新记录或者不是今天更新的，才调用接口
+    if (!lastUpdate || lastUpdate !== today) {
+      console.log('开始调用更新代办接口...');
+
+      const response = await fetch(`${API_BASE}/todos/updateTodos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('更新代办接口响应:', result);
+
+        if (result.success) {
+          // 更新成功，记录更新时间
+          localStorage.setItem('last_todo_update', today);
+          console.log('代办更新成功，已记录更新时间:', today);
+        } else {
+          console.error('更新代办失败:', result.message);
+        }
+      } else {
+        console.error('调用更新代办接口失败:', response.status);
+      }
+    } else {
+      console.log('今天已经更新过代办，跳过更新');
+    }
+  } catch (error) {
+    console.error('检查更新代办失败:', error);
+  }
+}
+
+// 加载某一天过期的待办
+async function loadOneDayExpiredTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    // 使用相同的本地日期格式
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用某一天过期的待办接口...', dateStr);
+
+    const response = await fetch(`${API_BASE}/todos/get-OneDayExpiredTodos?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('某一天过期的待办:', result);
+      if (result.success && result.todos) {
+        return result.todos;
+      }
+    } else {
+      console.error('获取某一天过期的待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用某一天过期的待办接口失败:', error);
+  }
+  return null;
 }
 </script>
 
