@@ -80,7 +80,7 @@ func ParseDateString(dateStr string) (time.Time, error) {
 	// 直接使用规定的标准格式进行解析
 	parsedTime, err := time.Parse(standardDateFormat, dateStr)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("无法解析日期 '%s'，要求格式为 YYYY-MM-DD (如: 2024-01-15)", dateStr)
+		return time.Time{}, fmt.Errorf("无法解析日期 '%s'，要求格式为 YYYY-MM-DD (如: 2024-1-15)", dateStr)
 	}
 
 	return parsedTime, nil

@@ -118,8 +118,8 @@ func (r *TodoRepository) FindOneDayExpiredTodos(userID uint, startTime, endTime 
 		Where("creator_user_id = ?", userID).
 		Where("status = 'pending'").
 		Where("has_children = false").
-		Where("endTime between ? and ?", startTime, endTime).
-		Order("endTime ASC").
+		Where("end_time between ? and ?", startTime, endTime).
+		Order("end_time ASC").
 		Find(&todos).Error
 	return todos, err
 }
