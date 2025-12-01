@@ -499,8 +499,9 @@ async function save() {
   }
 
   // 获取当前用户ID
-  const currentUserId = localStorage.getItem('currentUserId')
-  if (!currentUserId) {
+  const currentUser = localStorage.getItem('currentUser')
+  console.log('从localStorage获取currentUser:', currentUser)
+  if (!currentUser) {
     alert('无法获取用户信息，请重新登录')
     return
   }
@@ -508,12 +509,24 @@ async function save() {
   try {
     // 生成子日期
     const childDates = generateChildDates();
-    const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
+    // 修改这里：根据是否重复选择不同的时间处理方式
+    let startTime, endTime;
+
+    if (newEvent.value.repeat_type === 'none') {
+      // 非重复任务：直接使用前端选择的完整日期时间
+      startTime = formatToFullISO(newEvent.value.start_time);
+      endTime = formatToFullISO(newEvent.value.end_time);
+    } else {
+      // 重复任务：使用生成的第一个子日期拼接时间
+      const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
+      startTime = formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`);
+      endTime = formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`);
+    }
     const taskData = {
       title: newEvent.value.title,
       description: newEvent.value.description || '',
-      start_time: formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`),
-      end_time: formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`),
+      start_time: startTime,
+      end_time: endTime,
       urgency: newEvent.value.urgency,
       category: newEvent.value.category,
       repeat_type: newEvent.value.repeat_type,
@@ -657,15 +670,24 @@ async function updateTodo() {
 
     // 第二步：调用创建代办接口创建新任务（编辑后的任务）
     const childDates = generateChildDates();
-    const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
+    let startTime, endTime;
+
+    if (newEvent.value.repeat_type === 'none') {
+      startTime = formatToFullISO(newEvent.value.start_time);
+      endTime = formatToFullISO(newEvent.value.end_time);
+    } else {
+      const firstChildDate = childDates.length > 0 ? childDates[0] : new Date().toISOString().split('T')[0];
+      startTime = formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`);
+      endTime = formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`);
+    }
     const createRequestBody = {
       "category": newEvent.value.category || "personal",
       "child_dates": generateChildDates(),
       "description": newEvent.value.description || "",
-      "end_time": formatToFullISO(`${firstChildDate}T${newEvent.value.end_time_time || '00:00'}:00`),
+      "end_time": endTime,
       "repeat_interval": newEvent.value.repeat_interval || 1,
       "repeat_type": newEvent.value.repeat_type || "none",
-      "start_time": formatToFullISO(`${firstChildDate}T${newEvent.value.start_time_time || '00:00'}:00`),
+      "start_time": startTime,
       "title": newEvent.value.title,
       "urgency": newEvent.value.urgency || "medium"
     };
