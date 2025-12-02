@@ -238,7 +238,7 @@ onMounted(() => {
       preferCanvas: true,
       fadeAnimation: false,
       zoomAnimation: false,
-      maxBounds: paddedBounds,        // ★ 改动点
+      maxBounds: paddedBounds,
       maxBoundsViscosity: 1.0
     });
 
