@@ -7,7 +7,6 @@ type Organization struct {
 	LogoURL      string `gorm:"size:255" json:"logo_url"`
 	CreatorID    uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"creator_id"`
 	LocationCode string `gorm:"size:6;uniqueIndex" json:"location_code"`
-	Status       string `gorm:"type:ENUM('pending','approved','rejected');default:'pending'" json:"status"`
 
 	// 简化外键约束
 	Creator User `gorm:"foreignKey:CreatorID" json:"creator"`
