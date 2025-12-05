@@ -107,6 +107,13 @@ definitions:
           $ref: '#/definitions/models.Todo'
         type: array
     type: object
+  handlers.ErrorResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   handlers.RenewTodoResponse:
     properties:
       message:
@@ -125,6 +132,13 @@ definitions:
     required:
     - business
     - email
+    type: object
+  handlers.SuccessResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
     type: object
   handlers.TodoListResponse:
     properties:
@@ -154,6 +168,33 @@ definitions:
     - business
     - code
     - email
+    type: object
+  models.OrganizationApplication:
+    properties:
+      admin_remark:
+        description: 审批信息
+        type: string
+      applicant_introduction:
+        description: 申请内容
+        type: string
+      applicant_user_id:
+        description: 申请人信息
+        type: integer
+      applicant_username:
+        type: string
+      application_reason:
+        type: string
+      application_type:
+        description: 申请类型与状态
+        type: string
+      attachment_url:
+        type: string
+      id:
+        type: integer
+      organization_name:
+        type: string
+      status:
+        type: string
     type: object
   models.Todo:
     properties:
@@ -660,6 +701,357 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
+  /api/organization/application/create-organization:
+    post:
+      consumes:
+      - application/json
+      description: 用户提交创建新组织的申请，需要管理员审批
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 创建组织申请请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OrganizationApplication'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: '申请提交成功" example({"success": true, "message": "创建组织申请提交成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "组织名称已存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "提交申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 提交创建组织申请
+      tags:
+      - 组织申请
+  /api/organization/application/delete:{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 用户删除自己提交的申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 申请ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '删除成功" example({"success": true, "message": "申请删除成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "申请ID无效"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "删除申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除用户申请
+      tags:
+      - 组织申请
+  /api/organization/applications/{id}/process:
+    patch:
+      consumes:
+      - application/json
+      description: 系统/组织管理员审批或拒绝组织创建/加入申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 申请ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 处理请求
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '处理成功" example({"success": true, "message": "申请处理成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "申请不存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "处理申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 处理组织申请
+      tags:
+      - 组织申请
+  /api/organization/applications/join-organization:
+    post:
+      consumes:
+      - application/json
+      description: 用户提交加入现有组织的申请，需要组织管理员审批
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 加入组织申请请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OrganizationApplication'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: '申请提交成功" example({"success": true, "message": "加入组织申请提交成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "目标组织不存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "提交申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 提交加入组织申请
+      tags:
+      - 组织申请
+  /api/organization/my-organizations:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户加入的所有组织信息，包括组织基本信息和加入时间
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取组织列表成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "获取组织列表失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户组织总览
+      tags:
+      - 组织管理
+  /api/organization/remove-member:
+    delete:
+      consumes:
+      - application/json
+      description: 组织管理员或创建者从组织中移除成员
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 移除请求
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '移除成功" example({"success": true, "message": "成员移除成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "成员关系不存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "移除成员失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 移除组织成员
+      tags:
+      - 组织管理
+  /api/orgnization/application/my-applications:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户提交的所有组织相关申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取申请列表成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "获取申请列表失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户的申请列表
+      tags:
+      - 组织申请
+  /api/orgnization/application/pending-create:
+    get:
+      consumes:
+      - application/json
+      description: 管理员获取所有待处理的创建组织申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取创建组织申请成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "获取申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取待处理的创建组织申请
+      tags:
+      - 组织申请
+  /api/orgnization/application/pending-join:
+    get:
+      consumes:
+      - application/json
+      description: 组织管理员获取该组织的待处理加入申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织名称
+        in: query
+        name: orgName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取加入申请成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "获取申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取组织的待处理加入申请
+      tags:
+      - 组织申请
   /api/todos/Get-OneDayTodos:
     get:
       description: 查询在指定日期开始的所有未完成待办事项

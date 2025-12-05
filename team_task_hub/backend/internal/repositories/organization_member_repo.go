@@ -8,7 +8,6 @@ import (
 )
 
 // OrganizationMemberRepository 组织成员数据访问层
-// 负责所有与organization_members表相关的数据库操作
 type OrganizationMemberRepository struct {
 	db *gorm.DB
 }
@@ -69,8 +68,6 @@ func (r *OrganizationMemberRepository) GetByUserID(userID uint) ([]models.Organi
 func (r *OrganizationMemberRepository) GetMember(organizationID, userID uint) (*models.OrganizationMember, error) {
 	var member models.OrganizationMember
 	result := r.db.Where("organization_id = ? AND user_id = ?", organizationID, userID).
-		Preload("User").
-		Preload("Organization").
 		First(&member)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {

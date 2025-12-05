@@ -20,6 +20,7 @@ func SetupTodoRoutes(router *gin.Engine, db *gorm.DB, authService *services.Auth
 	todoGroup := router.Group("/api/todos")
 	todoGroup.Use(middleware.AuthMiddleware(authService))
 	{
+
 		todoGroup.POST("/createTodo", todoHandler.AddTodoHandler)
 		todoGroup.POST("/updateTodos", todoHandler.UpdateTodos)
 		todoGroup.POST("/cancel", todoHandler.CancelTodoByDetails)

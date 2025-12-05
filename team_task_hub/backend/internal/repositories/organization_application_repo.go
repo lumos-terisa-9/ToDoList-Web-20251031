@@ -33,16 +33,12 @@ func (r *OrganizationApplicationRepository) FindByID(id uint) (*models.Organizat
 	return &application, nil
 }
 
-// FindByApplicantAndStatus 根据申请用户ID和状态查找申请列表
-func (r *OrganizationApplicationRepository) FindByApplicantAndStatus(applicantUserID uint, status string) ([]models.OrganizationApplication, error) {
+// FindByApplicantAndStatus 根据申请用户ID查找申请列表
+func (r *OrganizationApplicationRepository) FindByApplicant(applicantUserID uint) ([]models.OrganizationApplication, error) {
 	var applications []models.OrganizationApplication
 
-	query := r.db.Where("applicant_user_id = ?", applicantUserID)
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
+	result := r.db.Where("applicant_user_id=?", applicantUserID).Find(&applications)
 
-	result := query.Order("id DESC").Find(&applications)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -52,7 +48,6 @@ func (r *OrganizationApplicationRepository) FindByApplicantAndStatus(applicantUs
 // FindByOrganizationAndStatus 根据组织名称和状态查找申请列表
 func (r *OrganizationApplicationRepository) FindByOrganizationAndStatus(organizationName string, status string) ([]models.OrganizationApplication, error) {
 	var applications []models.OrganizationApplication
-
 	query := r.db.Where("organization_name = ?", organizationName)
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -76,15 +71,21 @@ func (r *OrganizationApplicationRepository) FindPendingApplications() ([]models.
 }
 
 // FindByTypeAndStatus 根据申请类型和状态查找
-func (r *OrganizationApplicationRepository) FindByTypeAndStatus(appType string, status string) ([]models.OrganizationApplication, error) {
+func (r *OrganizationApplicationRepository) FindByTypeAndStatus(appType, status string) ([]models.OrganizationApplication, error) {
 	var applications []models.OrganizationApplication
 
-	query := r.db.Where("application_type = ?", appType)
-	if status != "" {
-		query = query.Where("status = ?", status)
+	result := r.db.Where("application_type = ? and status = ?", appType, status).Find(&applications)
+	if result.Error != nil {
+		return nil, result.Error
 	}
 
-	result := query.Order("id DESC").Find(&applications)
+	return applications, nil
+}
+
+// FindByOrgNameAndTypeAndStatus 根据组织名字获取加入组织申请
+func (r *OrganizationApplicationRepository) FindByOrgNameAndTypeAndStatus(orgName, appType, status string) ([]models.OrganizationApplication, error) {
+	var applications []models.OrganizationApplication
+	result := r.db.Where("organization_name=? and application_type=? and status=?", orgName, appType, status).Find(&applications)
 	if result.Error != nil {
 		return nil, result.Error
 	}
