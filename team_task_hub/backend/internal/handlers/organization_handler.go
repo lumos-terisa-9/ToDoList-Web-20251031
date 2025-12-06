@@ -4,6 +4,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"team_task_hub/backend/internal/models"
 	"team_task_hub/backend/internal/services"
 
@@ -116,7 +117,7 @@ func (h *OrganizationHandler) SubmitCreateOrganizationApplicationHandler(c *gin.
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "目标组织不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "提交申请失败"})
-// @Router /api/organization/applications/join-organization [post]
+// @Router /api/organization/application/join-organization [post]
 func (h *OrganizationHandler) SubmitJoinApplicationHandler(c *gin.Context) {
 	var request struct {
 		OrganizationName      string `json:"organization_name" binding:"required,min=1,max=100"`
@@ -195,7 +196,7 @@ func (h *OrganizationHandler) SubmitJoinApplicationHandler(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "申请不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "处理申请失败"})
-// @Router /api/organization/applications/{id}/process [patch]
+// @Router /api/organization/application/{id}/process [patch]
 func (h *OrganizationHandler) ProcessApplicationHandler(c *gin.Context) {
 	var request struct {
 		Action string `json:"action" binding:"required,oneof=approve reject"`
@@ -400,7 +401,7 @@ func (h *OrganizationHandler) GetUserApplicationsHandler(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "申请ID无效"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "删除申请失败"})
-// @Router /api/organization/application/delete:{id} [delete]
+// @Router /api/organization/application/{id} [delete]
 func (h *OrganizationHandler) DeleteUserApplicationHandler(c *gin.Context) {
 	applicationIDStr := c.Param("id")
 	applicationID, err := strconv.ParseUint(applicationIDStr, 10, 32)
@@ -474,5 +475,102 @@ func (h *OrganizationHandler) RemoveOrganizationMemberHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, SuccessResponse{
 		Success: true,
 		Message: "成员移除成功",
+	})
+}
+
+// SearchOrganizationsHandler 搜索组织
+// @Summary 搜索组织
+// @Description 根据组织名称进行模糊搜索，返回匹配的组织简略信息列表
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param keyword query string true "搜索关键词"
+// @Success 200 {object} SuccessResponse "搜索成功" example({"success": true, "message": "搜索成功", "data": [{"id": 1, "name": "软工羽队"}]})
+// @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "搜索关键词不能为空"})
+// @Failure 401 {object} ErrorResponse "用户未认证"
+// @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "搜索失败: 数据库连接错误"})
+// @Router /api/organization/search [get]
+func (h *OrganizationHandler) SearchOrganizationsHandler(c *gin.Context) {
+	// 从查询参数获取搜索关键词
+	keyword := c.Query("keyword")
+
+	// 验证关键词不能为空
+	if strings.TrimSpace(keyword) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "搜索关键词不能为空",
+		})
+		return
+	}
+
+	// 调用服务层进行搜索
+	results, err := h.orgService.FindOrgInfoByName(keyword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Message: "搜索失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "搜索成功",
+		"data":    results,
+	})
+}
+
+// GetOrganizationByIDHandler 根据组织ID获取组织详情
+// @Summary 获取组织详情
+// @Description 根据组织ID获取组织的完整详细信息。该接口集成了缓存，高频请求将直接返回缓存结果。
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param id path int true "组织ID" minimum(1)
+// @Success 200 {object} SuccessResponse "获取成功" example({"success": true, "message": "获取组织成功", "data": {"id": 1, "name": "技术部"}})
+// @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "无效的组织ID"})
+// @Failure 404 {object} ErrorResponse "组织不存在"
+// @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "查询组织失败: 组织不存在"})
+// @Router /api/organization/{id} [get]
+func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
+	// 获取并验证路径参数
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID，必须为正整数",
+		})
+		return
+	}
+
+	// 调用服务层方法
+	organization, err := h.orgService.FindOrgByID(uint(orgID))
+	if err != nil {
+		// 根据服务层返回的错误信息细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMessage := err.Error()
+
+		// 判断是否为"未找到"的错误
+		if strings.Contains(errorMessage, "不存在") || organization == nil {
+			statusCode = http.StatusNotFound
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "获取组织信息失败: " + errorMessage,
+		})
+		return
+	}
+
+	//  返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取组织成功",
+		"data":    organization,
 	})
 }

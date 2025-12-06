@@ -4,7 +4,7 @@ import "time"
 
 type Organization struct {
 	ID           uint   `gorm:"primaryKey;autoIncrement;type:BIGINT UNSIGNED" json:"id"`
-	Name         string `gorm:"size:100;not null" json:"name"`
+	Name         string `gorm:"size:100;not null;index" json:"name"`
 	Description  string `gorm:"type:text" json:"description"`
 	LogoURL      string `gorm:"size:255" json:"logo_url"`
 	CreatorID    uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"creator_id"`
@@ -58,4 +58,9 @@ type OrganizationApplication struct {
 
 func (OrganizationApplication) TableName() string {
 	return "organization_applications"
+}
+
+type OrgInfo struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }

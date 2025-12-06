@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"team_task_hub/backend/internal/models"
 	"time"
 )
 
@@ -36,4 +37,26 @@ func GetUserOrganizationOverviews(userID uint) ([]UserOrganizationOverview, erro
 // DeleteUserOrganizationOverviews 删除用户的组织总览缓存
 func DeleteUserOrganizationOverviews(userID uint) error {
 	return deleteKey(UserOrganizationOverviewsKey(userID))
+}
+
+// 组织id缓存组织基本信息
+func OrganizationInfoKey(id uint) string {
+	return fmt.Sprintf("orgID:%d", id)
+}
+
+func SetOrganizationInfo(org *models.Organization, expiration time.Duration) error {
+	return setJson(OrganizationInfoKey(org.ID), org, expiration)
+}
+
+func GetOrganizationInfo(id uint) (*models.Organization, error) {
+	var org models.Organization
+	err := getJson(OrganizationInfoKey(id), &org)
+	if err != nil {
+		return nil, err
+	}
+	return &org, nil
+}
+
+func DeleteOrganizationInfo(id uint) error {
+	return deleteKey(OrganizationInfoKey(id))
 }

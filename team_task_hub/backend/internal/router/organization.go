@@ -51,12 +51,14 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		baseAuthRoutes.Use(middleware.CreateAuthChain(authService, orgService, "")...)
 		{
 			baseAuthRoutes.POST("/application/create-organization", orgHandler.SubmitCreateOrganizationApplicationHandler)
-			baseAuthRoutes.POST("/applications/join-organization", orgHandler.SubmitJoinApplicationHandler)
-			baseAuthRoutes.PATCH("/applications/{id}/process", orgHandler.ProcessApplicationHandler)
+			baseAuthRoutes.POST("/application/join-organization", orgHandler.SubmitJoinApplicationHandler)
+			baseAuthRoutes.PATCH("/application/:id/process", orgHandler.ProcessApplicationHandler)
 			baseAuthRoutes.GET("/my-organizations", orgHandler.GetUserOrganizationOverviewsHandler)
 			baseAuthRoutes.GET("/application/pending-create", orgHandler.GetPendingCreateOrgApplicationsHandler)
 			baseAuthRoutes.GET("/application/my-applications", orgHandler.GetUserApplicationsHandler)
-			baseAuthRoutes.DELETE("/application/delete:{id}", orgHandler.DeleteUserApplicationHandler)
+			baseAuthRoutes.DELETE("/application/:id", orgHandler.DeleteUserApplicationHandler)
+			baseAuthRoutes.GET("/search", orgHandler.SearchOrganizationsHandler)
+			baseAuthRoutes.GET("/:id", orgHandler.GetOrganizationByIDHandler)
 		}
 	}
 }

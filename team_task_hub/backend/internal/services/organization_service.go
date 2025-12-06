@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"team_task_hub/backend/internal/cache"
 	"team_task_hub/backend/internal/models"
 	"team_task_hub/backend/internal/repositories"
@@ -371,4 +372,33 @@ func (s *OrganizationService) IsOrganizationMember(orgID, userID uint) (bool, er
 		return false, fmt.Errorf("检查成员关系失败: %v", err)
 	}
 	return exists, nil
+}
+
+// FindOrgInfoByName 根据关键词模糊化查询组织
+func (s *OrganizationService) FindOrgInfoByName(name string) ([]models.OrgInfo, error) {
+	cleanName := strings.TrimSpace(name)
+	if cleanName == "" {
+		return nil, errors.New("查询字段不能为空")
+	}
+
+	orgInfos, err := s.orgRepo.SearchOrganizationsByName(cleanName, 20)
+	if err != nil {
+		return nil, fmt.Errorf("查询组织info失败，原因：%v", err)
+	}
+
+	return orgInfos, nil
+}
+
+// FindOrgByID 根据id查询组织基本信息（带缓存）
+func (s *OrganizationService) FindOrgByID(id uint) (*models.Organization, error) {
+	if cacheOrg, err := cache.GetOrganizationInfo(id); cacheOrg != nil && err == nil {
+		return cacheOrg, nil
+	}
+	org, err := s.orgRepo.GetByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("通过id查询组织出错，原因：%v", err)
+	}
+
+	go cache.SetOrganizationInfo(org, 30*time.Minute)
+	return org, nil
 }

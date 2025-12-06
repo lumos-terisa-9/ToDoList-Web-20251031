@@ -101,6 +101,8 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	router.SetupAuthRoutes(r.Group("/api"), db, emailService, cfg.JWTSecret)
 	//待办路由
 	router.SetupTodoRoutes(r, db, authService)
+	//组织路由
+	router.SetupOrganizationRoutes(r, db, authService)
 }
 
 // Run 启动服务器

@@ -701,6 +701,90 @@ paths:
       summary: 验证邮箱验证码
       tags:
       - 邮箱验证
+  /api/organization/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据组织ID获取组织的完整详细信息。该接口集成了缓存，高频请求将直接返回缓存结果。
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取组织成功", "data":
+            {"id": 1, "name": "技术部"}})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "无效的组织ID"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: 组织不存在
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "查询组织失败: 组织不存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取组织详情
+      tags:
+      - 组织管理
+  /api/organization/application/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 用户删除自己提交的申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 申请ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '删除成功" example({"success": true, "message": "申请删除成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "申请ID无效"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "删除申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除用户申请
+      tags:
+      - 组织申请
   /api/organization/application/create-organization:
     post:
       consumes:
@@ -741,47 +825,6 @@ paths:
       security:
       - BearerAuth: []
       summary: 提交创建组织申请
-      tags:
-      - 组织申请
-  /api/organization/application/delete:{id}:
-    delete:
-      consumes:
-      - application/json
-      description: 用户删除自己提交的申请
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 申请ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '删除成功" example({"success": true, "message": "申请删除成功"})'
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: '请求参数错误" example({"success": false, "message": "申请ID无效"})'
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: 用户未认证
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: '系统内部错误" example({"success": false, "message": "删除申请失败"})'
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 删除用户申请
       tags:
       - 组织申请
   /api/organization/applications/{id}/process:
@@ -945,6 +988,48 @@ paths:
       security:
       - BearerAuth: []
       summary: 移除组织成员
+      tags:
+      - 组织管理
+  /api/organization/search:
+    get:
+      consumes:
+      - application/json
+      description: 根据组织名称进行模糊搜索，返回匹配的组织简略信息列表
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '搜索成功" example({"success": true, "message": "搜索成功", "data":
+            [{"id": 1, "name": "软工羽队"}]})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "搜索关键词不能为空"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "搜索失败: 数据库连接错误"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 搜索组织
       tags:
       - 组织管理
   /api/orgnization/application/my-applications:

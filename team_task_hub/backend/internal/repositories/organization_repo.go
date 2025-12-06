@@ -27,6 +27,29 @@ func (r *OrganizationRepository) Create(organization *models.Organization) error
 	return nil
 }
 
+// SearchOrganizationsByName 根据组织名称模糊搜索，仅返回ID和名称
+func (r *OrganizationRepository) SearchOrganizationsByName(keyword string, limit int) ([]models.OrgInfo, error) {
+	var simpleOrgs []models.OrgInfo
+
+	if keyword == "" {
+		return simpleOrgs, nil
+	}
+
+	// 使用左前缀匹配以利用数据库索引
+	searchPattern := keyword + "%"
+
+	result := r.db.Model(&models.Organization{}).
+		Select("id", "name").
+		Where("name LIKE ?", searchPattern).
+		Limit(limit).
+		Find(&simpleOrgs)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("模糊搜索组织失败: %v", result.Error)
+	}
+	return simpleOrgs, nil
+}
+
 // GetByID 根据主键ID查找组织
 func (r *OrganizationRepository) GetByID(id uint) (*models.Organization, error) {
 	var organization models.Organization
@@ -37,6 +60,7 @@ func (r *OrganizationRepository) GetByID(id uint) (*models.Organization, error) 
 		}
 		return nil, fmt.Errorf("查询组织失败: %v", result.Error)
 	}
+	organization.Creator.PasswordHash = ""
 	return &organization, nil
 }
 
@@ -60,6 +84,7 @@ func (r *OrganizationRepository) GetByLocationCode(locationCode string) (*models
 		}
 		return nil, fmt.Errorf("根据位置代码查询组织失败: %v", result.Error)
 	}
+	organization.Creator.PasswordHash = ""
 	return &organization, nil
 }
 
@@ -73,6 +98,7 @@ func (r *OrganizationRepository) GetByName(name string) (*models.Organization, e
 		}
 		return nil, fmt.Errorf("根据名称查询组织失败: %v", result.Error)
 	}
+	organization.Creator.PasswordHash = ""
 	return &organization, nil
 }
 

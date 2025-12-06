@@ -680,7 +680,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/organization/application/delete:{id}": {
+        "/api/organization/application/{id}": {
             "delete": {
                 "security": [
                     {
@@ -988,6 +988,133 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "系统内部错误\" example({\"success\": false, \"message\": \"移除成员失败\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/organization/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据组织名称进行模糊搜索，返回匹配的组织简略信息列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织管理"
+                ],
+                "summary": "搜索组织",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词",
+                        "name": "keyword",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "搜索成功\" example({\"success\": true, \"message\": \"搜索成功\", \"data\": [{\"id\": 1, \"name\": \"软工羽队\"}]})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"搜索关键词不能为空\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "用户未认证",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"搜索失败: 数据库连接错误\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/organization/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据组织ID获取组织的完整详细信息。该接口集成了缓存，高频请求将直接返回缓存结果。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织管理"
+                ],
+                "summary": "获取组织详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "组织ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功\" example({\"success\": true, \"message\": \"获取组织成功\", \"data\": {\"id\": 1, \"name\": \"技术部\"}})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误\" example({\"success\": false, \"message\": \"无效的组织ID\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "组织不存在",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误\" example({\"success\": false, \"message\": \"查询组织失败: 组织不存在\"})",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
