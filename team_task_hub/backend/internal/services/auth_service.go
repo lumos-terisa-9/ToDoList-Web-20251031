@@ -31,6 +31,7 @@ type JWTClaims struct {
 	Email        string `json:"email"`
 	JTI          string `json:"jti"`
 	TokenVersion uint   `json:"token_version"`
+	Role         uint   `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -192,6 +193,7 @@ func (s *AuthService) generateJWT(user *models.User) (string, error) {
 		UserID:       user.ID,
 		Username:     user.Username,
 		Email:        user.Email,
+		Role:         user.Role,
 		JTI:          jti,
 		TokenVersion: user.TokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{

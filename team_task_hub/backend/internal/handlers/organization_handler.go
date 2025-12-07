@@ -284,13 +284,14 @@ func (h *OrganizationHandler) GetUserOrganizationOverviewsHandler(c *gin.Context
 // GetPendingApplicationsHandler 获取待处理申请（支持过滤）
 // @Summary 获取待处理申请列表
 // @Description 管理员获取待处理申请，可通过type参数过滤
-// @Tags 组织申请管理
+// @Tags 系统管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param type query string false "申请类型: create_org（创建组织）,change_org（修改组织）,join_org（加入组织）"
 // @Success 200 {object} SuccessResponse "获取成功"
-// @Router /api/organization/application/pending [get]
+// @Router /admin/api/organization/application/pending [get]
 func (h *OrganizationHandler) GetPendingApplicationsHandler(c *gin.Context) {
 	appType := c.Query("type")
 
@@ -577,18 +578,18 @@ func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
 
 // UpdateOrganizationNameHandler 更新组织名称
 // @Summary 更新组织名称
-// @Description 更新指定组织的名称信息
-// @Tags 组织管理
+// @Description 管理员手动更新指定组织的名称信息，example({"new_name": "新技术研发部"})
+// @Tags 系统管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param Authorization header string true "Bearer Token"
+// @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
 // @Param request body object true "更新请求" example({"new_name": "新技术研发部"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/name [patch]
+// @Router /admin/api/organization/{id}/name [patch]
 func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
 	// 从路径参数获取组织ID
 	orgIDStr := c.Param("id")
@@ -633,18 +634,18 @@ func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
 
 // UpdateOrganizationDescriptionHandler 更新组织描述
 // @Summary 更新组织描述
-// @Description 更新指定组织的描述信息
-// @Tags 组织管理
+// @Description 管理员手动更新指定组织的描述信息，example({"new_description": "这是更新后的组织描述"})
+// @Tags 系统管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param Authorization header string true "Bearer Token"
+// @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
 // @Param request body object true "更新请求" example({"new_description": "这是更新后的组织描述"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/description [patch]
+// @Router /admin/api/organization/{id}/description [patch]
 func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Context) {
 	orgIDStr := c.Param("id")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
@@ -685,18 +686,18 @@ func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Contex
 
 // UpdateOrganizationLogoHandler 更新组织Logo
 // @Summary 更新组织Logo
-// @Description 更新指定组织的Logo图片URL
-// @Tags 组织管理
+// @Description 管理员手动更新指定组织的Logo图片URL，example({"new_logo_url": "https://example.com/logo.png"})
+// @Tags 系统管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param Authorization header string true "Bearer Token"
+// @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
 // @Param request body object true "更新请求" example({"new_logo_url": "https://example.com/logo.png"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/logo [patch]
+// @Router /admin/api/organization/{id}/logo [patch]
 func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
 	orgIDStr := c.Param("id")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
@@ -737,12 +738,12 @@ func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
 
 // TransferOrganizationOwnershipHandler 转移组织所有权
 // @Summary 转移组织所有权
-// @Description 将指定组织的所有权转移给其他成员
+// @Description 组织者将指定组织的所有权转移给其他成员，无需管理员审批
 // @Tags 组织管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param Authorization header string true "Bearer Token"
+// @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
 // @Param request body object true "转移请求" example({"new_creator_id": 123})
 // @Success 200 {object} SuccessResponse "转移成功"
@@ -888,5 +889,62 @@ func (h *OrganizationHandler) SubmitChangeOrganizationApplicationHandler(c *gin.
 	c.JSON(http.StatusCreated, SuccessResponse{
 		Success: true,
 		Message: "组织变更申请提交成功，等待管理员审批",
+	})
+}
+
+// PromoteToAdminHandler 提拔组织成员为管理员
+// @Summary 提拔组织成员为管理员
+// @Description 组织创建者将指定普通成员提拔为组织管理员
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param userID path int true "要提拔的用户ID"
+// @Success 200 {object} SuccessResponse "提拔成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 403 {object} ErrorResponse "权限不足（非组织创建者操作）"
+// @Failure 404 {object} ErrorResponse "组织或用户不存在"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/admin/{userID} [patch]
+func (h *OrganizationHandler) PromoteToAdminHandler(c *gin.Context) {
+	// 解析并验证路径参数
+	orgIDStr := c.Param("orgID")
+	userIDStr := c.Param("userID")
+
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的用户ID格式",
+		})
+		return
+	}
+
+	err = h.orgService.CreateAdmin(uint(orgID), uint(userID))
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "提拔成员失败: " + errorMsg,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "成员已成功提拔为管理员",
 	})
 }

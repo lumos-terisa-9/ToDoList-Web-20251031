@@ -519,3 +519,12 @@ func (s *OrganizationService) TransferOrganizationOwnership(orgID uint, newCreat
 
 	return nil
 }
+
+// CreateAdmin 组织者创建新的管理员
+func (s *OrganizationService) CreateAdmin(orgID, userID uint) error {
+	err := s.orgMemberRepo.UpdateRole(orgID, userID, "admin")
+	if err != nil {
+		return fmt.Errorf("创建新管理员失败，原因:%v", err)
+	}
+	return nil
+}

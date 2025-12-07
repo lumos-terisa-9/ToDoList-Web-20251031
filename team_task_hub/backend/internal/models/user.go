@@ -7,6 +7,7 @@ type User struct {
 	PasswordHash string `gorm:"size:255;not null" json:"password_hash"`
 	TokenVersion uint   `gorm:"default:1;not null" json:"token_version"`
 	AvatarURL    string `gorm:"size:255" json:"avatar_url"`
+	Role         uint   `gorm:"type:TINYINT UNSIGNED;default:0;not null" json:"role"`
 }
 
 func (User) TableName() string {
