@@ -147,6 +147,19 @@ func (s *OrganizationService) SubmitJoinApplication(application *models.Organiza
 	return nil
 }
 
+// SubmitChangeOrganizationApplication 提交修改组织申请
+func (s *OrganizationService) SubmitChangeOrganizationApplication(application *models.OrganizationApplication) error {
+	// 设置申请类型
+	application.ApplicationType = "change_org"
+
+	// 创建申请记录
+	if err := s.orgAppRepo.Create(application); err != nil {
+		return fmt.Errorf("提交修改组织申请失败: %v", err)
+	}
+
+	return nil
+}
+
 // ProcessApplication 处理组织申请
 func (s *OrganizationService) ProcessApplication(applicationID uint, action string, remark string, processedBy uint) error {
 	// 获取申请
@@ -252,8 +265,8 @@ func (s *OrganizationService) invalidateUserOrganizationCache(userID uint) {
 }
 
 // GetPendingApplications 获取待处理申请列表
-func (s *OrganizationService) GetPendingApplications() ([]models.OrganizationApplication, error) {
-	applications, err := s.orgAppRepo.FindPendingApplications()
+func (s *OrganizationService) GetPendingApplications(appType string) ([]models.OrganizationApplication, error) {
+	applications, err := s.orgAppRepo.FindByTypeAndStatus(appType, "pending")
 	if err != nil {
 		return nil, fmt.Errorf("查询待处理申请失败: %v", err)
 	}
@@ -265,6 +278,15 @@ func (s *OrganizationService) GetPendingCreateOrgApplications() ([]models.Organi
 	applications, err := s.orgAppRepo.FindByTypeAndStatus("create_org", "pending")
 	if err != nil {
 		return nil, fmt.Errorf("管理员获取创建组织申请失败，失败原因:%v", err)
+	}
+	return applications, nil
+}
+
+// GetPendingChangeOrgApplications 管理员获取修改组织申请列表
+func (s *OrganizationService) GetPendingChangeOrgApplications() ([]models.OrganizationApplication, error) {
+	applications, err := s.orgAppRepo.FindByTypeAndStatus("change_org", "pending")
+	if err != nil {
+		return nil, fmt.Errorf("管理员获取修改组织申请失败，失败原因:%v", err)
 	}
 	return applications, nil
 }
@@ -401,4 +423,99 @@ func (s *OrganizationService) FindOrgByID(id uint) (*models.Organization, error)
 
 	go cache.SetOrganizationInfo(org, 30*time.Minute)
 	return org, nil
+}
+
+// UpdateOrganizationName 更新组织名称
+func (s *OrganizationService) UpdateOrganizationName(orgID uint, newName string) error {
+	// 获取当前组织信息
+	org, err := s.orgRepo.GetByID(orgID)
+	if err != nil {
+		return fmt.Errorf("查询组织失败: %v", err)
+	}
+
+	// 更新字段
+	org.Name = newName
+
+	// 持久化到数据库
+	err = s.orgRepo.Update(org)
+	if err != nil {
+		return fmt.Errorf("更新组织名称失败: %v", err)
+	}
+
+	// 清理缓存，保证后续读取的数据是最新的
+	go cache.DeleteOrganizationInfo(orgID)
+
+	return nil
+}
+
+// UpdateOrganizationDescription 更新组织描述
+func (s *OrganizationService) UpdateOrganizationDescription(orgID uint, newDescription string) error {
+	org, err := s.orgRepo.GetByID(orgID)
+	if err != nil {
+		return fmt.Errorf("查询组织失败: %v", err)
+	}
+
+	org.Description = newDescription
+
+	err = s.orgRepo.Update(org)
+	if err != nil {
+		return fmt.Errorf("更新组织描述失败: %v", err)
+	}
+
+	go cache.DeleteOrganizationInfo(orgID)
+	return nil
+}
+
+// UpdateOrganizationLogo 更新组织Logo
+func (s *OrganizationService) UpdateOrganizationLogo(orgID uint, newLogoURL string) error {
+	org, err := s.orgRepo.GetByID(orgID)
+	if err != nil {
+		return fmt.Errorf("查询组织失败: %v", err)
+	}
+
+	org.LogoURL = newLogoURL
+
+	err = s.orgRepo.Update(org)
+	if err != nil {
+		return fmt.Errorf("更新组织Logo失败: %v", err)
+	}
+
+	go cache.DeleteOrganizationInfo(orgID)
+	return nil
+}
+
+// TransferOrganizationOwnership 转移组织所有权
+func (s *OrganizationService) TransferOrganizationOwnership(orgID uint, newCreatorID uint, processedBy uint) error {
+	// 查询组织信息
+	org, err := s.orgRepo.GetByID(orgID)
+	if err != nil {
+		return fmt.Errorf("查询组织失败: %v", err)
+	}
+
+	// 记录原创建者ID
+	oldCreatorID := org.CreatorID
+
+	// 更新组织表的创建者字段
+	org.CreatorID = newCreatorID
+	err = s.orgRepo.Update(org)
+	if err != nil {
+		return fmt.Errorf("更新组织创建者失败: %v", err)
+	}
+
+	// 将原创建者（当前操作者）在成员表中的角色降级为 'admin'
+	err = s.orgMemberRepo.UpdateRole(orgID, oldCreatorID, "admin")
+	if err != nil {
+		return fmt.Errorf("降级原先组织者失败，原因：%v", err)
+	}
+
+	// 将新创建者在成员表中的角色提升为 'creator'
+	err = s.orgMemberRepo.UpdateRole(orgID, newCreatorID, "creator")
+	if err != nil {
+		return fmt.Errorf("创建新组织者失败，原因：%v", err)
+	}
+
+	// 清理缓存
+	go cache.DeleteOrganizationInfo(orgID)
+
+	return nil
 }

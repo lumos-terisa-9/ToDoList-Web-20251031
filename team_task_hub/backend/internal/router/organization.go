@@ -28,7 +28,7 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		creatorRoutes := organizationGroup.Group("")
 		creatorRoutes.Use(middleware.CreateAuthChain(authService, orgService, "creator")...)
 		{
-
+			creatorRoutes.PATCH("/:id/ownership", orgHandler.TransferOrganizationOwnershipHandler)
 		}
 
 		// 需要组织管理员权限的路由
@@ -37,6 +37,7 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		{
 			adminRoutes.GET("/application/pending-join", orgHandler.GetOrgPendingJoinApplicationsHandler)
 			adminRoutes.DELETE("/remove-member", orgHandler.RemoveOrganizationMemberHandler)
+			adminRoutes.POST("/change-organization", orgHandler.SubmitChangeOrganizationApplicationHandler)
 		}
 
 		// 需要组织成员权限的路由
@@ -50,15 +51,33 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		baseAuthRoutes := organizationGroup.Group("")
 		baseAuthRoutes.Use(middleware.CreateAuthChain(authService, orgService, "")...)
 		{
+			//创建申请
 			baseAuthRoutes.POST("/application/create-organization", orgHandler.SubmitCreateOrganizationApplicationHandler)
 			baseAuthRoutes.POST("/application/join-organization", orgHandler.SubmitJoinApplicationHandler)
+
+			//处理申请
 			baseAuthRoutes.PATCH("/application/:id/process", orgHandler.ProcessApplicationHandler)
+
+			//个人组织总览
 			baseAuthRoutes.GET("/my-organizations", orgHandler.GetUserOrganizationOverviewsHandler)
-			baseAuthRoutes.GET("/application/pending-create", orgHandler.GetPendingCreateOrgApplicationsHandler)
+
+			//获取待处理的申请
+			baseAuthRoutes.GET("/application/pending", orgHandler.GetPendingApplicationsHandler)
+
+			//用户获取所有申请
 			baseAuthRoutes.GET("/application/my-applications", orgHandler.GetUserApplicationsHandler)
+
+			//用户删除申请
 			baseAuthRoutes.DELETE("/application/:id", orgHandler.DeleteUserApplicationHandler)
+
+			//用户查找组织
 			baseAuthRoutes.GET("/search", orgHandler.SearchOrganizationsHandler)
 			baseAuthRoutes.GET("/:id", orgHandler.GetOrganizationByIDHandler)
+
+			//更改组织信息
+			baseAuthRoutes.PATCH("/:id/name", orgHandler.UpdateOrganizationNameHandler)
+			baseAuthRoutes.PATCH("/:id/description", orgHandler.UpdateOrganizationDescriptionHandler)
+			baseAuthRoutes.PATCH("/:id/logo", orgHandler.UpdateOrganizationLogoHandler)
 		}
 	}
 }

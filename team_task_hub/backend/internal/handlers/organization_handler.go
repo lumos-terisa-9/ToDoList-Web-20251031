@@ -281,31 +281,31 @@ func (h *OrganizationHandler) GetUserOrganizationOverviewsHandler(c *gin.Context
 	})
 }
 
-// GetPendingCreateOrgApplicationsHandler 获取待处理的创建组织申请
-// @Summary 获取待处理的创建组织申请
-// @Description 管理员获取所有待处理的创建组织申请
-// @Tags 组织申请
+// GetPendingApplicationsHandler 获取待处理申请（支持过滤）
+// @Summary 获取待处理申请列表
+// @Description 管理员获取待处理申请，可通过type参数过滤
+// @Tags 组织申请管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Success 200 {object} SuccessResponse "获取成功" example({"success": true, "message": "获取创建组织申请成功"})
-// @Failure 401 {object} ErrorResponse "用户未认证"
-// @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "获取申请失败"})
-// @Router /api/orgnization/application/pending-create [get]
-func (h *OrganizationHandler) GetPendingCreateOrgApplicationsHandler(c *gin.Context) {
-	applications, err := h.orgService.GetPendingCreateOrgApplications()
+// @Param type query string false "申请类型: create_org（创建组织）,change_org（修改组织）,join_org（加入组织）"
+// @Success 200 {object} SuccessResponse "获取成功"
+// @Router /api/organization/application/pending [get]
+func (h *OrganizationHandler) GetPendingApplicationsHandler(c *gin.Context) {
+	appType := c.Query("type")
+
+	applications, err := h.orgService.GetPendingApplications(appType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Success: false,
-			Message: "获取创建组织申请失败: " + err.Error(),
+			Message: "获取申请列表失败: " + err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "获取创建组织申请成功",
+		"message": "获取申请列表成功",
 		"data":    applications,
 	})
 }
@@ -572,5 +572,321 @@ func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
 		"success": true,
 		"message": "获取组织成功",
 		"data":    organization,
+	})
+}
+
+// UpdateOrganizationNameHandler 更新组织名称
+// @Summary 更新组织名称
+// @Description 更新指定组织的名称信息
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token"
+// @Param id path int true "组织ID"
+// @Param request body object true "更新请求" example({"new_name": "新技术研发部"})
+// @Success 200 {object} SuccessResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/name [patch]
+func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
+	// 从路径参数获取组织ID
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "无效的组织ID",
+		})
+		return
+	}
+
+	// 绑定请求体
+	var request struct {
+		NewName string `json:"new_name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.orgService.UpdateOrganizationName(uint(orgID), request.NewName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Message: "更新组织名称失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, SuccessResponse{
+		Success: true,
+		Message: "组织名称更新成功",
+	})
+}
+
+// UpdateOrganizationDescriptionHandler 更新组织描述
+// @Summary 更新组织描述
+// @Description 更新指定组织的描述信息
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token"
+// @Param id path int true "组织ID"
+// @Param request body object true "更新请求" example({"new_description": "这是更新后的组织描述"})
+// @Success 200 {object} SuccessResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/description [patch]
+func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Context) {
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "无效的组织ID",
+		})
+		return
+	}
+
+	var request struct {
+		NewDescription string `json:"new_description" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	err = h.orgService.UpdateOrganizationDescription(uint(orgID), request.NewDescription)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Message: "更新组织描述失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{
+		Success: true,
+		Message: "组织描述更新成功",
+	})
+}
+
+// UpdateOrganizationLogoHandler 更新组织Logo
+// @Summary 更新组织Logo
+// @Description 更新指定组织的Logo图片URL
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token"
+// @Param id path int true "组织ID"
+// @Param request body object true "更新请求" example({"new_logo_url": "https://example.com/logo.png"})
+// @Success 200 {object} SuccessResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/logo [patch]
+func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "无效的组织ID",
+		})
+		return
+	}
+
+	var request struct {
+		NewLogoURL string `json:"new_logo_url" binding:"max=255"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	err = h.orgService.UpdateOrganizationLogo(uint(orgID), request.NewLogoURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Message: "更新组织Logo失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{
+		Success: true,
+		Message: "组织Logo更新成功",
+	})
+}
+
+// TransferOrganizationOwnershipHandler 转移组织所有权
+// @Summary 转移组织所有权
+// @Description 将指定组织的所有权转移给其他成员
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token"
+// @Param id path int true "组织ID"
+// @Param request body object true "转移请求" example({"new_creator_id": 123})
+// @Success 200 {object} SuccessResponse "转移成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/ownership [patch]
+func (h *OrganizationHandler) TransferOrganizationOwnershipHandler(c *gin.Context) {
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "无效的组织ID",
+		})
+		return
+	}
+
+	var request struct {
+		NewCreatorID uint `json:"new_creator_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 从JWT token中获取当前操作者ID
+	processedBy, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Success: false,
+			Message: "用户未认证",
+		})
+		return
+	}
+
+	err = h.orgService.TransferOrganizationOwnership(
+		uint(orgID),
+		request.NewCreatorID,
+		processedBy.(uint),
+	)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		// 根据错误类型细化状态码
+		if strings.Contains(errorMsg, "无权") ||
+			strings.Contains(errorMsg, "不是该组织成员") {
+			statusCode = http.StatusForbidden
+		}
+
+		c.JSON(statusCode, ErrorResponse{
+			Success: false,
+			Message: "转移组织所有权失败: " + errorMsg,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{
+		Success: true,
+		Message: "组织所有权转移成功",
+	})
+}
+
+// SubmitChangeOrgAppRequest 提交组织变更申请请求结构
+type SubmitChangeOrgAppRequest struct {
+	OrganizationID        uint   `json:"organization_id" binding:"required,min=1"`
+	OrganizationName      string `json:"organization_name" binding:"required,min=1,max=100"`
+	ApplicationReason     string `json:"application_reason" binding:"required,min=1"`
+	ApplicantIntroduction string `json:"applicant_introduction,omitempty"`
+	AttachmentURL         string `json:"attachment_url,omitempty" max:"255"`
+}
+
+// SubmitChangeOrganizationApplicationHandler 提交组织变更申请
+// @Summary 提交组织变更申请
+// @Description 用户提交组织信息变更申请，需要管理员审批
+// @Tags 组织申请
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body SubmitChangeOrgAppRequest true "变更申请请求"
+// @Success 201 {object} SuccessResponse "申请提交成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 401 {object} ErrorResponse "用户未认证"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/application/change-organization [post]
+func (h *OrganizationHandler) SubmitChangeOrganizationApplicationHandler(c *gin.Context) {
+	// 绑定和验证请求数据
+	var request SubmitChangeOrgAppRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Success: false,
+			Message: "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 从JWT token中获取申请人信息
+	applicantUserID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Success: false,
+			Message: "用户未认证",
+		})
+		return
+	}
+
+	applicantUsername, exists := c.Get("username")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Success: false,
+			Message: "用户信息不完整",
+		})
+		return
+	}
+
+	// 创建申请记录
+	application := &models.OrganizationApplication{
+		ApplicantUserID:       applicantUserID.(uint),
+		ApplicantUsername:     applicantUsername.(string),
+		OrganizationID:        request.OrganizationID,
+		OrganizationName:      request.OrganizationName,
+		ApplicationReason:     request.ApplicationReason,
+		ApplicantIntroduction: request.ApplicantIntroduction,
+		AttachmentURL:         request.AttachmentURL,
+	}
+
+	// 调用服务层提交申请
+	err := h.orgService.SubmitChangeOrganizationApplication(application)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Success: false,
+			Message: "提交变更申请失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusCreated, SuccessResponse{
+		Success: true,
+		Message: "组织变更申请提交成功，等待管理员审批",
 	})
 }
