@@ -17,8 +17,9 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 	orgRepo := repositories.NewOrganizationRepository(db)
 	orgMemberRepo := repositories.NewOrganizationMemberRepository(db)
 	orgAppRepo := repositories.NewOrganizationApplicationRepository(db)
+	codeRepo := repositories.NewVerificationCodeRepository(db)
 
-	orgService := services.NewOrganizationService(orgRepo, orgMemberRepo, orgAppRepo)
+	orgService := services.NewOrganizationService(orgRepo, orgMemberRepo, orgAppRepo, codeRepo)
 	orgHandler := handlers.NewOrganizationHandler(orgService)
 
 	//需要超级管理员权限的路由
@@ -52,6 +53,8 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			adminRoutes.GET("/application/pending-join", orgHandler.GetOrgPendingJoinApplicationsHandler)
 			adminRoutes.DELETE("/remove-member", orgHandler.RemoveOrganizationMemberHandler)
 			adminRoutes.POST("/change-organization", orgHandler.SubmitChangeOrganizationApplicationHandler)
+			adminRoutes.PUT("/:id/location", orgHandler.UpdateOrganizationLocationHandler)
+			adminRoutes.POST(":id/invite-codes", orgHandler.CreateCustomInviteCodeHandler)
 		}
 
 		// 需要组织成员权限的路由
@@ -84,6 +87,10 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			//用户查找组织
 			baseAuthRoutes.GET("/search", orgHandler.SearchOrganizationsHandler)
 			baseAuthRoutes.GET("/:id", orgHandler.GetOrganizationByIDHandler)
+			baseAuthRoutes.GET("/nearby", orgHandler.SearchNearbyOrganizationsHandler)
+
+			//用户快速加入组织
+			baseAuthRoutes.POST("/join-with-code", orgHandler.JoinOrganizationWithCodeHandler)
 		}
 	}
 }

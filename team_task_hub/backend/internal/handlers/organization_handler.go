@@ -1,4 +1,3 @@
-// handlers/organization_handler.go
 package handlers
 
 import (
@@ -27,6 +26,14 @@ type SuccessResponse struct {
 	Message string `json:"message"`
 }
 
+// CreateOrganizationApplicationRequest 创建组织申请请求
+type CreateOrganizationApplicationRequest struct {
+	OrganizationName      string `json:"organization_name" binding:"required,min=1,max=100"`
+	ApplicationReason     string `json:"application_reason" binding:"required,min=1"`
+	ApplicantIntroduction string `json:"applicant_introduction,omitempty"`
+	AttachmentURL         string `json:"attachment_url,omitempty"`
+}
+
 // SubmitCreateOrganizationApplicationHandler 提交创建组织申请
 // @Summary 提交创建组织申请
 // @Description 用户提交创建新组织的申请，需要管理员审批
@@ -35,7 +42,7 @@ type SuccessResponse struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param request body models.OrganizationApplication true "创建组织申请请求"
+// @Param request body CreateOrganizationApplicationRequest true "创建组织申请请求"
 // @Success 201 {object} SuccessResponse "申请提交成功" example({"success": true, "message": "创建组织申请提交成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "组织名称已存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
@@ -104,6 +111,13 @@ func (h *OrganizationHandler) SubmitCreateOrganizationApplicationHandler(c *gin.
 	})
 }
 
+type JoinOrganizationApplicationRequest struct {
+	OrganizationName      string `json:"organization_name" binding:"required,min=1,max=100"`
+	ApplicationReason     string `json:"application_reason" binding:"required,min=1"`
+	ApplicantIntroduction string `json:"applicant_introduction,omitempty"`
+	AttachmentURL         string `json:"attachment_url,omitempty"`
+}
+
 // SubmitJoinApplicationHandler 提交加入组织申请
 // @Summary 提交加入组织申请
 // @Description 用户提交加入现有组织的申请，需要组织管理员审批
@@ -112,7 +126,7 @@ func (h *OrganizationHandler) SubmitCreateOrganizationApplicationHandler(c *gin.
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param request body models.OrganizationApplication true "加入组织申请请求"
+// @Param request body JoinOrganizationApplicationRequest true "加入组织申请请求"
 // @Success 201 {object} SuccessResponse "申请提交成功" example({"success": true, "message": "加入组织申请提交成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "目标组织不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
@@ -182,6 +196,11 @@ func (h *OrganizationHandler) SubmitJoinApplicationHandler(c *gin.Context) {
 	})
 }
 
+type ProcessApplicationRequest struct {
+	Action string `json:"action" binding:"required,oneof=approve reject" example:"approve"`
+	Remark string `json:"remark,omitempty" example:"申请符合要求"`
+}
+
 // ProcessApplicationHandler 处理组织申请
 // @Summary 处理组织申请
 // @Description 系统/组织管理员审批或拒绝组织创建/加入申请
@@ -191,7 +210,7 @@ func (h *OrganizationHandler) SubmitJoinApplicationHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "申请ID"
-// @Param request body object true "处理请求" example({"action":"approve","remark":"申请符合要求"})
+// @Param request body ProcessApplicationRequest true "处理请求" example({"action":"approve","remark":"申请符合要求"})
 // @Success 200 {object} SuccessResponse "处理成功" example({"success": true, "message": "申请处理成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "申请不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
@@ -429,6 +448,11 @@ func (h *OrganizationHandler) DeleteUserApplicationHandler(c *gin.Context) {
 	})
 }
 
+type RemoveOrganizationMemberRequest struct {
+	OrgID  uint `json:"org_id" binding:"required" example:"1"`
+	UserID uint `json:"user_id" binding:"required" example:"2"`
+}
+
 // RemoveOrganizationMemberHandler 移除组织成员
 // @Summary 移除组织成员
 // @Description 组织管理员或创建者从组织中移除成员
@@ -437,7 +461,7 @@ func (h *OrganizationHandler) DeleteUserApplicationHandler(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param request body object true "移除请求" example({"org_id": 1, "user_id": 2})
+// @Param request body RemoveOrganizationMemberRequest true "移除请求" example({"org_id": 1, "user_id": 2})
 // @Success 200 {object} SuccessResponse "移除成功" example({"success": true, "message": "成员移除成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "成员关系不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
@@ -482,7 +506,7 @@ func (h *OrganizationHandler) RemoveOrganizationMemberHandler(c *gin.Context) {
 // SearchOrganizationsHandler 搜索组织
 // @Summary 搜索组织
 // @Description 根据组织名称进行模糊搜索，返回匹配的组织简略信息列表
-// @Tags 组织管理
+// @Tags 组织查询
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -526,7 +550,7 @@ func (h *OrganizationHandler) SearchOrganizationsHandler(c *gin.Context) {
 // GetOrganizationByIDHandler 根据组织ID获取组织详情
 // @Summary 获取组织详情
 // @Description 根据组织ID获取组织的完整详细信息。该接口集成了缓存，高频请求将直接返回缓存结果。
-// @Tags 组织管理
+// @Tags 组织查询
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -576,6 +600,10 @@ func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
 	})
 }
 
+type UpdateOrganizationNameRequest struct {
+	NewName string `json:"new_name" binding:"required,min=1,max=100" example:"新技术研发部"`
+}
+
 // UpdateOrganizationNameHandler 更新组织名称
 // @Summary 更新组织名称
 // @Description 管理员手动更新指定组织的名称信息，example({"new_name": "新技术研发部"})
@@ -585,7 +613,7 @@ func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
-// @Param request body object true "更新请求" example({"new_name": "新技术研发部"})
+// @Param request body UpdateOrganizationNameRequest true "更新请求" example({"new_name": "新技术研发部"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
@@ -632,6 +660,10 @@ func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
 	})
 }
 
+type UpdateOrganizationDescriptionRequest struct {
+	NewDescription string `json:"new_description" binding:"required,max=500" example:"这是更新后的组织描述"`
+}
+
 // UpdateOrganizationDescriptionHandler 更新组织描述
 // @Summary 更新组织描述
 // @Description 管理员手动更新指定组织的描述信息，example({"new_description": "这是更新后的组织描述"})
@@ -641,7 +673,7 @@ func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
-// @Param request body object true "更新请求" example({"new_description": "这是更新后的组织描述"})
+// @Param request body UpdateOrganizationDescriptionRequest true "更新请求" example({"new_description": "这是更新后的组织描述"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
@@ -684,6 +716,11 @@ func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Contex
 	})
 }
 
+// UpdateOrganizationLogoRequest 更新组织Logo请求
+type UpdateOrganizationLogoRequest struct {
+	NewLogoURL string `json:"new_logo_url" binding:"required,url,max=255" example:"https://example.com/logo.png"`
+}
+
 // UpdateOrganizationLogoHandler 更新组织Logo
 // @Summary 更新组织Logo
 // @Description 管理员手动更新指定组织的Logo图片URL，example({"new_logo_url": "https://example.com/logo.png"})
@@ -693,7 +730,7 @@ func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Contex
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
-// @Param request body object true "更新请求" example({"new_logo_url": "https://example.com/logo.png"})
+// @Param request body UpdateOrganizationLogoRequest true "更新请求" example({"new_logo_url": "https://example.com/logo.png"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
@@ -736,6 +773,84 @@ func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
 	})
 }
 
+// UpdateOrganizationLocationRequest 更新组织位置请求结构体
+type UpdateOrganizationLocationRequest struct {
+	Latitude  float64 `json:"latitude" binding:"required,min=-90,max=90"`
+	Longitude float64 `json:"longitude" binding:"required,min=-180,max=180"`
+}
+
+// UpdateOrganizationLocationHandler 更新组织地理位置
+// @Summary 更新组织地理位置
+// @Description 根据经纬度为组织生成8位精度的Geohash编码
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param id path int true "组织ID"
+// @Param request body UpdateOrganizationLocationRequest true "位置更新请求"
+// @Success 200 {object} SuccessResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 401 {object} ErrorResponse "用户未认证"
+// @Failure 404 {object} ErrorResponse "组织不存在"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/location [put]
+func (h *OrganizationHandler) UpdateOrganizationLocationHandler(c *gin.Context) {
+	// 获取组织ID
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	// 绑定和验证请求体
+	var request UpdateOrganizationLocationRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层方法
+	err = h.orgService.UpdateOrganizationLocation(uint(orgID), request.Latitude, request.Longitude)
+	if err != nil {
+		// 根据错误类型细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		switch {
+		case strings.Contains(errorMsg, "组织不存在"):
+			statusCode = http.StatusNotFound
+		case strings.Contains(errorMsg, "纬度值无效") || strings.Contains(errorMsg, "经度值无效"):
+			statusCode = http.StatusBadRequest
+		case strings.Contains(errorMsg, "权限"):
+			statusCode = http.StatusForbidden
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "更新组织位置失败: " + errorMsg,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "组织地理位置更新成功",
+	})
+}
+
+// TransferOrganizationOwnershipRequest 转移组织所有权请求
+type TransferOrganizationOwnershipRequest struct {
+	NewCreatorID uint `json:"new_creator_id" binding:"required,min=1" example:"123"`
+}
+
 // TransferOrganizationOwnershipHandler 转移组织所有权
 // @Summary 转移组织所有权
 // @Description 组织者将指定组织的所有权转移给其他成员，无需管理员审批
@@ -745,7 +860,7 @@ func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
 // @Param id path int true "组织ID"
-// @Param request body object true "转移请求" example({"new_creator_id": 123})
+// @Param request body TransferOrganizationOwnershipRequest true "转移请求" example({"new_creator_id": 123})
 // @Success 200 {object} SuccessResponse "转移成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
@@ -946,5 +1061,223 @@ func (h *OrganizationHandler) PromoteToAdminHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "成员已成功提拔为管理员",
+	})
+}
+
+// SearchNearbyOrganizationsHandler 查询附近组织
+// @Summary 查询附近组织
+// @Description 根据用户经纬度生成Geohash前缀，查询约50米范围内的附近组织
+// @Tags 组织查询
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param lat query number true "纬度" minimum(-90) maximum(90)
+// @Param lng query number true "经度" minimum(-180) maximum(180)
+// @Success 200 {object} SuccessResponse "查询成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/nearby [get]
+func (h *OrganizationHandler) SearchNearbyOrganizationsHandler(c *gin.Context) {
+	// 1. 获取和验证查询参数
+	lat, err := strconv.ParseFloat(c.Query("lat"), 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "纬度参数格式错误",
+		})
+		return
+	}
+
+	lng, err := strconv.ParseFloat(c.Query("lng"), 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "经度参数格式错误",
+		})
+		return
+	}
+
+	// 调用服务层方法
+	organizations, err := h.orgService.FindNearbyOrganizationsByGeohashPrefix(lat, lng)
+	if err != nil {
+		// 根据错误类型细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		if strings.Contains(errorMsg, "无效的经纬度参数") {
+			statusCode = http.StatusBadRequest
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "查询附近组织失败: " + errorMsg,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询成功",
+		"data": gin.H{
+			"organizations": organizations,
+			"count":         len(organizations),
+		},
+	})
+}
+
+// CreateInviteCodeRequest 创建邀请码请求结构
+type CreateInviteCodeRequest struct {
+	Code string `json:"code" binding:"required,len=6"`
+}
+
+// CreateCustomInviteCodeHandler 创建自定义组织邀请码
+// @Summary 创建组织邀请码
+// @Description 管理员为指定组织创建自定义6位数字邀请码，有效期为3分钟
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param id path int true "组织ID"
+// @Param request body CreateInviteCodeRequest true "邀请码创建请求"
+// @Success 201 {object} SuccessResponse "创建成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 401 {object} ErrorResponse "用户未认证"
+// @Failure 403 {object} ErrorResponse "权限不足"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{id}/invite-codes [post]
+func (h *OrganizationHandler) CreateCustomInviteCodeHandler(c *gin.Context) {
+	// 获取并验证组织ID
+	orgIDStr := c.Param("id")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	// 绑定和验证请求体
+	var request struct {
+		Code string `json:"code" binding:"required,len=6"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层方法
+	err = h.orgService.CreateCustomInviteCode(uint(orgID), request.Code)
+	if err != nil {
+		// 根据错误类型细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		if strings.Contains(errorMsg, "验证码必须是6位数字") {
+			statusCode = http.StatusBadRequest
+		} else if strings.Contains(errorMsg, "组织不存在") {
+			statusCode = http.StatusNotFound
+		} else if strings.Contains(errorMsg, "权限") {
+			statusCode = http.StatusForbidden
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "创建邀请码失败: " + errorMsg,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "组织邀请码创建成功，有效期3分钟",
+	})
+}
+
+// JoinWithCodeRequest 邀请码加入组织请求结构
+type JoinWithCodeRequest struct {
+	OrganizationID uint   `json:"organization_id" binding:"required,min=1"`
+	Code           string `json:"code" binding:"required,len=6"`
+}
+
+// JoinOrganizationWithCodeHandler 使用邀请码加入组织
+// @Summary 使用邀请码加入组织
+// @Description 用户通过提交有效的邀请码直接加入指定组织（免审核）
+// @Tags 加入组织
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body JoinWithCodeRequest true "加入请求"
+// @Success 200 {object} SuccessResponse "加入成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误或邀请码无效"
+// @Failure 409 {object} ErrorResponse "用户已是组织成员"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/join-with-code [post]
+func (h *OrganizationHandler) JoinOrganizationWithCodeHandler(c *gin.Context) {
+	// 绑定和验证请求参数
+	var request struct {
+		OrganizationID uint   `json:"organization_id" binding:"required,min=1"`
+		Code           string `json:"code" binding:"required,len=6"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 从JWT Token中获取当前用户ID
+	currentUserID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "用户未认证",
+		})
+		return
+	}
+
+	// 调用服务层验证邀请码并加入组织
+	err := h.orgService.VerifyAndJoinOrganization(
+		currentUserID.(uint),
+		request.OrganizationID,
+		request.Code,
+	)
+	if err != nil {
+		// 根据错误类型细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		switch {
+		case strings.Contains(errorMsg, "邀请码无效") ||
+			strings.Contains(errorMsg, "验证码查询失败"):
+			statusCode = http.StatusBadRequest
+		case strings.Contains(errorMsg, "已是该组织成员"):
+			statusCode = http.StatusConflict
+		case strings.Contains(errorMsg, "权限"):
+			statusCode = http.StatusForbidden
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "加入组织失败: " + errorMsg,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "成功加入组织",
 	})
 }

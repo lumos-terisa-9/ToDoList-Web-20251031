@@ -1,4 +1,3 @@
-// handlers/todo_handler.go
 package handlers
 
 import (

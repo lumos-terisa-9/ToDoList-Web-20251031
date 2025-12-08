@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"team_task_hub/backend/internal/models"
 	"time"
 
@@ -48,4 +49,27 @@ func (r *VerificationCodeRepository) IsRateLimited(email string, seconds int) (b
 		Where("email = ? AND created_at > ?", email, sinceTime).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// FindValidJoinOrganizationCode 查找有效的组织加入验证码
+func (r *VerificationCodeRepository) FindValidJoinOrganizationCode(organizationID uint, code string) (*models.VerificationCode, error) {
+	var verificationCode models.VerificationCode
+
+	// 查询未使用、未过期、匹配组织和代码，且业务类型为join_organization的记录
+	err := r.db.Where("organization_id = ? AND code = ? AND business = ? AND used = ? AND expires_at > ?",
+		organizationID,
+		code,
+		"join_organization",
+		false,
+		time.Now()).
+		First(&verificationCode).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &verificationCode, nil
 }

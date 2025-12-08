@@ -99,7 +99,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.UpdateOrganizationDescriptionRequest"
                         }
                     }
                 ],
@@ -165,7 +165,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.UpdateOrganizationLogoRequest"
                         }
                     }
                 ],
@@ -231,7 +231,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.UpdateOrganizationNameRequest"
                         }
                     }
                 ],
@@ -955,7 +955,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.OrganizationApplication"
+                            "$ref": "#/definitions/handlers.CreateOrganizationApplicationRequest"
                         }
                     }
                 ],
@@ -1020,7 +1020,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.OrganizationApplication"
+                            "$ref": "#/definitions/handlers.JoinOrganizationApplicationRequest"
                         }
                     }
                 ],
@@ -1155,7 +1155,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.ProcessApplicationRequest"
                         }
                     }
                 ],
@@ -1180,6 +1180,71 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "系统内部错误\" example({\"success\": false, \"message\": \"处理申请失败\"})",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/organization/join-with-code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "用户通过提交有效的邀请码直接加入指定组织（免审核）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "加入组织"
+                ],
+                "summary": "使用邀请码加入组织",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "加入请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.JoinWithCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "加入成功",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或邀请码无效",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "用户已是组织成员",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -1237,6 +1302,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/organization/nearby": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据用户经纬度生成Geohash前缀，查询约50米范围内的附近组织",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织查询"
+                ],
+                "summary": "查询附近组织",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "maximum": 90,
+                        "minimum": -90,
+                        "type": "number",
+                        "description": "纬度",
+                        "name": "lat",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 180,
+                        "minimum": -180,
+                        "type": "number",
+                        "description": "经度",
+                        "name": "lng",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/organization/remove-member": {
             "delete": {
                 "security": [
@@ -1270,7 +1403,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.RemoveOrganizationMemberRequest"
                         }
                     }
                 ],
@@ -1317,7 +1450,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "组织管理"
+                    "组织查询"
                 ],
                 "summary": "搜索组织",
                 "parameters": [
@@ -1380,7 +1513,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "组织管理"
+                    "组织查询"
                 ],
                 "summary": "获取组织详情",
                 "parameters": [
@@ -1429,6 +1562,162 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/organization/{id}/invite-codes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员为指定组织创建自定义6位数字邀请码，有效期为3分钟",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织管理"
+                ],
+                "summary": "创建组织邀请码",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "邀请码创建请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateInviteCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "用户未认证",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/organization/{id}/location": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据经纬度为组织生成8位精度的Geohash编码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织管理"
+                ],
+                "summary": "更新组织地理位置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "组织ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "位置更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateOrganizationLocationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "用户未认证",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "组织不存在",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/organization/{id}/ownership": {
             "patch": {
                 "security": [
@@ -1469,7 +1758,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/handlers.TransferOrganizationOwnershipRequest"
                         }
                     }
                 ],
@@ -2528,6 +2817,41 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.CreateInviteCodeRequest": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.CreateOrganizationApplicationRequest": {
+            "type": "object",
+            "required": [
+                "application_reason",
+                "organization_name"
+            ],
+            "properties": {
+                "applicant_introduction": {
+                    "type": "string"
+                },
+                "application_reason": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "attachment_url": {
+                    "type": "string"
+                },
+                "organization_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
         "handlers.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2536,6 +2860,83 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "handlers.JoinOrganizationApplicationRequest": {
+            "type": "object",
+            "required": [
+                "application_reason",
+                "organization_name"
+            ],
+            "properties": {
+                "applicant_introduction": {
+                    "type": "string"
+                },
+                "application_reason": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "attachment_url": {
+                    "type": "string"
+                },
+                "organization_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "handlers.JoinWithCodeRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "organization_id"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "handlers.ProcessApplicationRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ],
+                    "example": "approve"
+                },
+                "remark": {
+                    "type": "string",
+                    "example": "申请符合要求"
+                }
+            }
+        },
+        "handlers.RemoveOrganizationMemberRequest": {
+            "type": "object",
+            "required": [
+                "org_id",
+                "user_id"
+            ],
+            "properties": {
+                "org_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "user_id": {
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
@@ -2627,6 +3028,78 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.TransferOrganizationOwnershipRequest": {
+            "type": "object",
+            "required": [
+                "new_creator_id"
+            ],
+            "properties": {
+                "new_creator_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 123
+                }
+            }
+        },
+        "handlers.UpdateOrganizationDescriptionRequest": {
+            "type": "object",
+            "required": [
+                "new_description"
+            ],
+            "properties": {
+                "new_description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "这是更新后的组织描述"
+                }
+            }
+        },
+        "handlers.UpdateOrganizationLocationRequest": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "maximum": 90,
+                    "minimum": -90
+                },
+                "longitude": {
+                    "type": "number",
+                    "maximum": 180,
+                    "minimum": -180
+                }
+            }
+        },
+        "handlers.UpdateOrganizationLogoRequest": {
+            "type": "object",
+            "required": [
+                "new_logo_url"
+            ],
+            "properties": {
+                "new_logo_url": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://example.com/logo.png"
+                }
+            }
+        },
+        "handlers.UpdateOrganizationNameRequest": {
+            "type": "object",
+            "required": [
+                "new_name"
+            ],
+            "properties": {
+                "new_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "example": "新技术研发部"
+                }
+            }
+        },
         "handlers.VerifyCodeRequest": {
             "type": "object",
             "required": [
@@ -2645,48 +3118,6 @@ const docTemplate = `{
                 },
                 "email": {
                     "description": "邮箱地址",
-                    "type": "string"
-                }
-            }
-        },
-        "models.OrganizationApplication": {
-            "type": "object",
-            "properties": {
-                "admin_remark": {
-                    "description": "审批信息",
-                    "type": "string"
-                },
-                "applicant_introduction": {
-                    "description": "申请内容",
-                    "type": "string"
-                },
-                "applicant_user_id": {
-                    "description": "申请人信息",
-                    "type": "integer"
-                },
-                "applicant_username": {
-                    "type": "string"
-                },
-                "application_reason": {
-                    "type": "string"
-                },
-                "application_type": {
-                    "description": "申请类型与状态",
-                    "type": "string"
-                },
-                "attachment_url": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "organization_id": {
-                    "type": "integer"
-                },
-                "organization_name": {
-                    "type": "string"
-                },
-                "status": {
                     "type": "string"
                 }
             }

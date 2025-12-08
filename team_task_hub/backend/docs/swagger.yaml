@@ -107,12 +107,90 @@ definitions:
           $ref: '#/definitions/models.Todo'
         type: array
     type: object
+  handlers.CreateInviteCodeRequest:
+    properties:
+      code:
+        type: string
+    required:
+    - code
+    type: object
+  handlers.CreateOrganizationApplicationRequest:
+    properties:
+      applicant_introduction:
+        type: string
+      application_reason:
+        minLength: 1
+        type: string
+      attachment_url:
+        type: string
+      organization_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - application_reason
+    - organization_name
+    type: object
   handlers.ErrorResponse:
     properties:
       message:
         type: string
       success:
         type: boolean
+    type: object
+  handlers.JoinOrganizationApplicationRequest:
+    properties:
+      applicant_introduction:
+        type: string
+      application_reason:
+        minLength: 1
+        type: string
+      attachment_url:
+        type: string
+      organization_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - application_reason
+    - organization_name
+    type: object
+  handlers.JoinWithCodeRequest:
+    properties:
+      code:
+        type: string
+      organization_id:
+        minimum: 1
+        type: integer
+    required:
+    - code
+    - organization_id
+    type: object
+  handlers.ProcessApplicationRequest:
+    properties:
+      action:
+        enum:
+        - approve
+        - reject
+        example: approve
+        type: string
+      remark:
+        example: 申请符合要求
+        type: string
+    required:
+    - action
+    type: object
+  handlers.RemoveOrganizationMemberRequest:
+    properties:
+      org_id:
+        example: 1
+        type: integer
+      user_id:
+        example: 2
+        type: integer
+    required:
+    - org_id
+    - user_id
     type: object
   handlers.RenewTodoResponse:
     properties:
@@ -174,6 +252,57 @@ definitions:
           $ref: '#/definitions/models.Todo'
         type: array
     type: object
+  handlers.TransferOrganizationOwnershipRequest:
+    properties:
+      new_creator_id:
+        example: 123
+        minimum: 1
+        type: integer
+    required:
+    - new_creator_id
+    type: object
+  handlers.UpdateOrganizationDescriptionRequest:
+    properties:
+      new_description:
+        example: 这是更新后的组织描述
+        maxLength: 500
+        type: string
+    required:
+    - new_description
+    type: object
+  handlers.UpdateOrganizationLocationRequest:
+    properties:
+      latitude:
+        maximum: 90
+        minimum: -90
+        type: number
+      longitude:
+        maximum: 180
+        minimum: -180
+        type: number
+    required:
+    - latitude
+    - longitude
+    type: object
+  handlers.UpdateOrganizationLogoRequest:
+    properties:
+      new_logo_url:
+        example: https://example.com/logo.png
+        maxLength: 255
+        type: string
+    required:
+    - new_logo_url
+    type: object
+  handlers.UpdateOrganizationNameRequest:
+    properties:
+      new_name:
+        example: 新技术研发部
+        maxLength: 100
+        minLength: 1
+        type: string
+    required:
+    - new_name
+    type: object
   handlers.VerifyCodeRequest:
     properties:
       business:
@@ -189,35 +318,6 @@ definitions:
     - business
     - code
     - email
-    type: object
-  models.OrganizationApplication:
-    properties:
-      admin_remark:
-        description: 审批信息
-        type: string
-      applicant_introduction:
-        description: 申请内容
-        type: string
-      applicant_user_id:
-        description: 申请人信息
-        type: integer
-      applicant_username:
-        type: string
-      application_reason:
-        type: string
-      application_type:
-        description: 申请类型与状态
-        type: string
-      attachment_url:
-        type: string
-      id:
-        type: integer
-      organization_id:
-        type: integer
-      organization_name:
-        type: string
-      status:
-        type: string
     type: object
   models.Todo:
     properties:
@@ -352,7 +452,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.UpdateOrganizationDescriptionRequest'
       produces:
       - application/json
       responses:
@@ -395,7 +495,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.UpdateOrganizationLogoRequest'
       produces:
       - application/json
       responses:
@@ -438,7 +538,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.UpdateOrganizationNameRequest'
       produces:
       - application/json
       responses:
@@ -965,6 +1065,108 @@ paths:
       - BearerAuth: []
       summary: 获取组织详情
       tags:
+      - 组织查询
+  /api/organization/{id}/invite-codes:
+    post:
+      consumes:
+      - application/json
+      description: 管理员为指定组织创建自定义6位数字邀请码，有效期为3分钟
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 邀请码创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateInviteCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建组织邀请码
+      tags:
+      - 组织管理
+  /api/organization/{id}/location:
+    put:
+      consumes:
+      - application/json
+      description: 根据经纬度为组织生成8位精度的Geohash编码
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 位置更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateOrganizationLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: 组织不存在
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新组织地理位置
+      tags:
       - 组织管理
   /api/organization/{id}/ownership:
     patch:
@@ -988,7 +1190,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.TransferOrganizationOwnershipRequest'
       produces:
       - application/json
       responses:
@@ -1122,7 +1324,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.ProcessApplicationRequest'
       produces:
       - application/json
       responses:
@@ -1164,7 +1366,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.OrganizationApplication'
+          $ref: '#/definitions/handlers.CreateOrganizationApplicationRequest'
       produces:
       - application/json
       responses:
@@ -1206,7 +1408,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.OrganizationApplication'
+          $ref: '#/definitions/handlers.JoinOrganizationApplicationRequest'
       produces:
       - application/json
       responses:
@@ -1231,6 +1433,48 @@ paths:
       summary: 提交加入组织申请
       tags:
       - 组织申请
+  /api/organization/join-with-code:
+    post:
+      consumes:
+      - application/json
+      description: 用户通过提交有效的邀请码直接加入指定组织（免审核）
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 加入请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.JoinWithCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 加入成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误或邀请码无效
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: 用户已是组织成员
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 使用邀请码加入组织
+      tags:
+      - 加入组织
   /api/organization/my-organizations:
     get:
       consumes:
@@ -1263,6 +1507,52 @@ paths:
       summary: 获取用户组织总览
       tags:
       - 组织管理
+  /api/organization/nearby:
+    get:
+      consumes:
+      - application/json
+      description: 根据用户经纬度生成Geohash前缀，查询约50米范围内的附近组织
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 纬度
+        in: query
+        maximum: 90
+        minimum: -90
+        name: lat
+        required: true
+        type: number
+      - description: 经度
+        in: query
+        maximum: 180
+        minimum: -180
+        name: lng
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 查询附近组织
+      tags:
+      - 组织查询
   /api/organization/remove-member:
     delete:
       consumes:
@@ -1280,7 +1570,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/handlers.RemoveOrganizationMemberRequest'
       produces:
       - application/json
       responses:
@@ -1346,7 +1636,7 @@ paths:
       - BearerAuth: []
       summary: 搜索组织
       tags:
-      - 组织管理
+      - 组织查询
   /api/orgnization/application/my-applications:
     get:
       consumes:

@@ -11,6 +11,7 @@ import (
 	"team_task_hub/backend/internal/repositories"
 	"time"
 
+	"github.com/mmcloughlin/geohash"
 	"gorm.io/gorm"
 )
 
@@ -18,17 +19,20 @@ type OrganizationService struct {
 	orgRepo       *repositories.OrganizationRepository
 	orgMemberRepo *repositories.OrganizationMemberRepository
 	orgAppRepo    *repositories.OrganizationApplicationRepository
+	codeRepo      *repositories.VerificationCodeRepository
 }
 
 func NewOrganizationService(
 	orgRepo *repositories.OrganizationRepository,
 	orgMemberRepo *repositories.OrganizationMemberRepository,
 	orgAppRepo *repositories.OrganizationApplicationRepository,
+	codeRepo *repositories.VerificationCodeRepository,
 ) *OrganizationService {
 	return &OrganizationService{
 		orgRepo:       orgRepo,
 		orgMemberRepo: orgMemberRepo,
 		orgAppRepo:    orgAppRepo,
+		codeRepo:      codeRepo,
 	}
 }
 
@@ -484,6 +488,41 @@ func (s *OrganizationService) UpdateOrganizationLogo(orgID uint, newLogoURL stri
 	return nil
 }
 
+// UpdateOrganizationLocation 根据经纬度更新组织的9位Geohash地理位置编码
+func (s *OrganizationService) UpdateOrganizationLocation(orgID uint, latitude, longitude float64) error {
+
+	org, err := s.orgRepo.GetByID(orgID)
+	if err != nil {
+		return fmt.Errorf("查询组织失败: %v", err)
+	}
+	if org == nil {
+		return fmt.Errorf("组织不存在")
+	}
+
+	// 验证经纬度有效性（经纬度由前端浏览器获取，一般有效）
+	if latitude < -90 || latitude > 90 {
+		return fmt.Errorf("纬度值无效，应在-90到90之间")
+	}
+	if longitude < -180 || longitude > 180 {
+		return fmt.Errorf("经度值无效，应在-180到180之间")
+	}
+
+	// 计算9位精度的Geohash编码
+	locationCode := geohash.EncodeWithPrecision(latitude, longitude, 9)
+
+	// 更新组织的位置编码
+	org.LocationCode = locationCode
+	err = s.orgRepo.Update(org)
+	if err != nil {
+		return fmt.Errorf("更新组织位置编码失败: %v", err)
+	}
+
+	// 清理缓存（异步）
+	go cache.DeleteOrganizationInfo(orgID)
+
+	return nil
+}
+
 // TransferOrganizationOwnership 转移组织所有权
 func (s *OrganizationService) TransferOrganizationOwnership(orgID uint, newCreatorID uint, processedBy uint) error {
 	// 查询组织信息
@@ -526,5 +565,104 @@ func (s *OrganizationService) CreateAdmin(orgID, userID uint) error {
 	if err != nil {
 		return fmt.Errorf("创建新管理员失败，原因:%v", err)
 	}
+	return nil
+}
+
+// FindNearbyOrganizationsByGeohashPrefix 通过Geohash前缀查询附近组织
+func (s *OrganizationService) FindNearbyOrganizationsByGeohashPrefix(userLat, userLng float64) ([]models.OrgInfo, error) {
+	// 验证经纬度有效性
+	if userLat < -90 || userLat > 90 || userLng < -180 || userLng > 180 {
+		return nil, fmt.Errorf("无效的经纬度参数")
+	}
+
+	// 生成用户位置的Geohash编码（9位精度）
+	fullGeohash := geohash.EncodeWithPrecision(userLat, userLng, 9)
+
+	// 取前8位作为查询前缀（约±19米精度）
+	searchPrefix := fullGeohash[:8]
+
+	// 使用前缀查询数据库
+	orgInfos, err := s.orgRepo.FindByGeohashPrefix(searchPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("数据库查询失败: %v", err)
+	}
+
+	return orgInfos, nil
+}
+
+// CreateCustomInviteCode 管理员为组织创建自定义邀请码
+func (s *OrganizationService) CreateCustomInviteCode(orgID uint, customCode string) error {
+	// 验证自定义验证码格式（6位数字）
+	if !isValidCustomCode(customCode) {
+		return fmt.Errorf("验证码必须是6位数字")
+	}
+
+	// 创建自定义验证码记录
+	verificationCode := &models.VerificationCode{
+		Code:           customCode,
+		Business:       "join_organization",
+		OrganizationID: orgID,
+		ExpiresAt:      time.Now().Add(3 * time.Minute),
+		Used:           false,
+	}
+
+	// 保存到数据库
+	err := s.codeRepo.Create(verificationCode)
+	if err != nil {
+		return fmt.Errorf("创建自定义邀请码失败: %v", err)
+	}
+
+	return nil
+}
+
+// 验证自定义验证码格式（6位数字）
+func isValidCustomCode(code string) bool {
+	if len(code) != 6 {
+		return false
+	}
+	// 检查是否全部为数字
+	for _, char := range code {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// VerifyAndJoinOrganization 验证邀请码并加入组织
+func (s *OrganizationService) VerifyAndJoinOrganization(userID uint, organizationID uint, code string) error {
+	// 查询有效的组织加入验证码
+	validCode, err := s.codeRepo.FindValidJoinOrganizationCode(organizationID, code)
+	if err != nil {
+		return fmt.Errorf("验证码查询失败: %v", err)
+	}
+	if validCode == nil {
+		return fmt.Errorf("邀请码无效、已过期或类型不正确")
+	}
+
+	// 检查用户是否已是组织成员
+	isMember, err := s.orgMemberRepo.Exists(organizationID, userID)
+	if err != nil {
+		return fmt.Errorf("检查成员关系失败: %v", err)
+	}
+	if isMember {
+		return fmt.Errorf("您已是该组织成员，无需重复加入")
+	}
+
+	// 将用户加入组织
+	newMember := &models.OrganizationMember{
+		OrganizationID: organizationID,
+		UserID:         userID,
+		Role:           "member",
+		Status:         "active",
+		JoinedAt:       time.Now(),
+	}
+
+	err = s.orgMemberRepo.Create(newMember)
+	if err != nil {
+		return fmt.Errorf("加入组织失败: %v", err)
+	}
+
+	cache.DeleteUserOrganizationOverviews(userID)
 	return nil
 }

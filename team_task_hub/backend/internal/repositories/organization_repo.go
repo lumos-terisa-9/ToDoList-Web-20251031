@@ -50,6 +50,23 @@ func (r *OrganizationRepository) SearchOrganizationsByName(keyword string, limit
 	return simpleOrgs, nil
 }
 
+// FindByGeohashPrefix 通过Geohash前缀查找组织
+func (r *OrganizationRepository) FindByGeohashPrefix(prefix string) ([]models.OrgInfo, error) {
+	var simpleOrgs []models.OrgInfo
+
+	// 使用LIKE查询进行前缀匹配，利用数据库索引提高性能
+	err := r.db.Model(&models.Organization{}).
+		Select("id", "name").
+		Where("location_code LIKE ?", prefix+"%").
+		Find(&simpleOrgs).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("通过位置码前缀查询组织失败，原因：%v", err)
+	}
+
+	return simpleOrgs, nil
+}
+
 // GetByID 根据主键ID查找组织
 func (r *OrganizationRepository) GetByID(id uint) (*models.Organization, error) {
 	var organization models.Organization
