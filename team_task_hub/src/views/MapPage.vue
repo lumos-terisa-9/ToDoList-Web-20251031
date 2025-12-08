@@ -36,6 +36,7 @@
 
 
 <script setup>
+import axios from "axios";
 import L from "leaflet";
 import { onMounted, ref, onUnmounted, onBeforeUnmount } from "vue";
 import "leaflet/dist/leaflet.css";
@@ -62,6 +63,26 @@ defineExpose({
 // ----------------------------
 const map = ref(null);
 const activeLocation = ref(null);
+const apiBaseUrl = "http://localhost:8080"; // 你的后端地址
+// 建一个 axios 实例，统一配置 baseURL 和 token
+const api = axios.create({
+  baseURL: apiBaseUrl,
+  timeout: 10000,
+});
+
+// 每次请求自动带上 token（根据后端的校验方式调整）
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    // 看后端是用 Authorization 还是自定义 header，比如 "token"
+    // 1）常见 JWT 写法：
+    config.headers.Authorization = `Bearer ${token}`;
+    // 2）如果 Swagger 里写的是 header 参数名叫 token，就用：
+    // config.headers.token = token;
+  }
+  return config;
+});
+
 
 // 地图图片尺寸（请根据你的图片实际尺寸修改）
 const imgWidth = 6000;
@@ -73,16 +94,61 @@ const initialZoom = ref(null);
 // ----------------------------
 // 点位数据
 // ----------------------------
+// ----------------------------
+// 点位数据（只负责坐标/type，名字和加入时间从后端填）
+// ----------------------------
 const locations = ref([
-  {id: 1, name: "德玛西亚", x: 22, y: 48, icon: demaciaIcon, type: "kingdom"},
-  {id: 2, name: "诺克萨斯", x: 45, y: 34, icon: noxusIcon, type: "empire"},
-  {id: 3, name: "艾欧尼亚", x: 78, y: 26, icon: ioniaIcon, type: "region"},
-  {id: 4, name: "皮尔特沃夫", x: 52, y: 58, icon: piltoverIcon, type: "city"},
+  { id: 1, x: 22, y: 48, icon: demaciaIcon, type: "kingdom", name: "", joinTime: null },
+  { id: 2, x: 45, y: 34, icon: noxusIcon,   type: "empire",  name: "", joinTime: null },
+  { id: 3, x: 78, y: 26, icon: ioniaIcon,   type: "region",  name: "", joinTime: null },
+  { id: 4, x: 52, y: 58, icon: piltoverIcon,type: "city",    name: "", joinTime: null },
 ]);
+
+
 
 // ----------------------------
 // 辅助函数
 // ----------------------------
+
+// 从后端加载所有“可在地图展示的组织”，名字&加入时间都来自数据库
+async function loadOrgInfoFromBackend() {
+  try {
+    const resp = await axios.get("http://localhost:8080/api/organization/my-organizations");
+    // 打印真实结构
+    console.log("my-organizations 原始返回：", resp.data);
+
+    // 尽可能兼容几种常见结构
+    const orgList =
+      resp.data?.data ??
+      resp.data?.result ??
+      resp.data?.records ??
+      resp.data;
+
+    if (!Array.isArray(orgList)) {
+      console.warn("后端返回的不是数组，解析结果为：", orgList);
+      return; // 不继续往下映射，避免把 name 全搞成 undefined
+    }
+
+    const orgMap = new Map(orgList.map((o) => [o.id, o]));
+
+    locations.value = locations.value.map(loc => {
+      const org = orgMap.get(loc.id);
+      if (!org) return loc;
+      return {
+        ...loc,
+        name: org.name || loc.name,
+        joinTime: org.joinTime || org.join_time || null
+      };
+    });
+
+    console.log("加载后的地标：", locations.value);
+  } catch (err) {
+    console.error("加载组织信息失败，将使用默认地标配置：", err);
+    // 不要 throw，让地图照常初始化
+  }
+}
+
+
 function percentToPx(loc) {
   return [(loc.y / 100) * imgHeight, (loc.x / 100) * imgWidth];
 }
@@ -201,7 +267,8 @@ function handleResize() {
 // ----------------------------
 // 初始化地图
 // ----------------------------
-onMounted(() => {
+onMounted(async () => {
+  await loadOrgInfoFromBackend();
   try {
     // 原始边界
     const bounds = [
