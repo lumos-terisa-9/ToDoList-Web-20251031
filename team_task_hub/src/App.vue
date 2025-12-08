@@ -240,4 +240,32 @@ onMounted(() => {
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.5s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* ============ 地图 & 迷雾的全局层级控制 ============ */
+
+/* 地图容器本身（Leaflet 会塞各种 pane 进去） */
+.map {
+  position: relative; /* 确保绝对定位的雾可以以它为参考 */
+}
+
+/* 迷雾层：盖在地图上，但在 UI 面板之下 */
+.fog-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;  /* 不拦截鼠标事件 */
+  z-index: 400;          /* 比地图瓦片/overlay 高 */
+}
+
+/* 左侧控制面板 + 右侧详情面板：永远在最上层 */
+.map-controls,
+.location-detail {
+  position: absolute;
+  z-index: 1000;         /* 明确高于迷雾 */
+}
+
+/* Leaflet 的 marker pane 提高层级，始终在雾上面 */
+.leaflet-marker-pane {
+  z-index: 700 !important;
+}
+
 </style>

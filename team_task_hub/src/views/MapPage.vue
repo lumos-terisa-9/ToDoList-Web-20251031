@@ -1,62 +1,48 @@
 <template>
   <div class="map-container">
-    <!-- 紧凑的玻璃质感控制面板 -->
-    <div class="map-controls glass-panel">
-      <div class="control-group">
-        <button @click="resetView" class="control-btn" title="重置视图">
-          <span class="icon">🗺️</span>
-        </button>
-        <button @click="zoomIn" class="control-btn" title="放大">
-          <span class="icon">🔍</span>
-        </button>
-        <button @click="zoomOut" class="control-btn" title="缩小">
-          <span class="icon">🔎</span>
-        </button>
-      </div>
-      <div class="location-list">
-        <div class="list-header">
-          <span>组织列表</span>
-          <span class="count-badge">{{ locations.length }}</span>
-        </div>
-        <div
-          v-for="loc in locations"
-          :key="loc.id"
-          class="location-item"
-          @click="flyToLocation(loc)"
-          :class="{ active: activeLocation?.id === loc.id }"
-        >
-          <span class="location-dot" :style="{ backgroundColor: getLocationColor(loc.type) }"></span>
-          <span class="location-name">{{ loc.name }}</span>
-        </div>
-      </div>
-    </div>
+    <!-- 控制面板 -->
+    <MapControls
+      :locations="locations"
+      :active-location-id="activeLocation?.id || null"
+      :get-location-color="getLocationColor"
+      @reset-view="resetView"
+      @zoom-in="zoomIn"
+      @zoom-out="zoomOut"
+      @select-location="flyToLocation"
+    />
 
-    <!-- 全屏地图容器 -->
+    <!-- 保持不变） -->
     <div id="map" class="map"></div>
 
-    <!-- 紧凑的详情面板 -->
-    <div v-if="activeLocation" class="location-detail glass-panel">
-      <div class="detail-header">
-        <h4>{{ activeLocation.name }}</h4>
-        <button class="close-btn" @click="activeLocation = null">×</button>
-      </div>
-      <div class="detail-content">
-        <div class="detail-meta">
-          <span class="meta-item">坐标: {{ activeLocation.x }}, {{ activeLocation.y }}</span>
-          <span class="meta-item">类型: {{ getTypeName(activeLocation.type) }}</span>
-        </div>
-        <button class="action-btn compact" @click="openLocation(activeLocation)">
-          查看详情
-        </button>
-      </div>
-    </div>
+    <!-- 🌫️ 迷雾组件 -->
+    <FogLayer
+      v-if="map"
+      :map="map"
+      :img-width="imgWidth"
+      :img-height="imgHeight"
+      :locations="locations"
+    />
+
+    <!-- 详情面板 -->
+    <LocationDetail
+      v-if="activeLocation"
+      :location="activeLocation"
+      :get-type-name="getTypeName"
+      @close="activeLocation = null"
+      @open="openLocation"
+    />
   </div>
 </template>
+
 
 <script setup>
 import L from "leaflet";
 import { onMounted, ref, onUnmounted, onBeforeUnmount } from "vue";
 import "leaflet/dist/leaflet.css";
+import MapControls from "@/components/MapControls.vue";
+import LocationDetail from "@/components/LocationDetail.vue";
+import FogLayer from "@/components/FogLayer.vue";
+
 
 // 地图资源
 import mapImg from "@/assets/gameMap.jpeg";
@@ -232,7 +218,7 @@ onMounted(() => {
     map.value = L.map("map", {
       crs: L.CRS.Simple,
       minZoom: -2.5,
-      maxZoom: 4,
+      maxZoom: 20,
       zoomControl: false,
       attributionControl: false,
       preferCanvas: true,
@@ -303,7 +289,7 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style>
 /* 重置样式确保全屏 */
 * {
   margin: 0;
