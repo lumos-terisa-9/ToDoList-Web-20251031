@@ -72,13 +72,18 @@ const api = axios.create({
 
 // 每次请求自动带上 token（根据后端的校验方式调整）
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    // 看后端是用 Authorization 还是自定义 header，比如 "token"
-    // 1）常见 JWT 写法：
-    config.headers.Authorization = `Bearer ${token}`;
-    // 2）如果 Swagger 里写的是 header 参数名叫 token，就用：
-    // config.headers.token = token;
+  const raw = localStorage.getItem("token");
+  if (raw) {
+    try {
+      const obj = JSON.parse(raw);
+      const accessToken = obj?.data?.access_token;
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    } catch (e) {
+      // 如果 raw 本身就是 token 字符串（兼容老版本）
+      config.headers.Authorization = `Bearer ${raw}`;
+    }
   }
   return config;
 });
@@ -113,38 +118,27 @@ const locations = ref([
 // 从后端加载所有“可在地图展示的组织”，名字&加入时间都来自数据库
 async function loadOrgInfoFromBackend() {
   try {
-    const resp = await axios.get("http://localhost:8080/api/organization/my-organizations");
-    // 打印真实结构
-    console.log("my-organizations 原始返回：", resp.data);
+    const resp = await api.get("/api/organization/my-organizations");
+    const orgList = resp.data?.data;
 
-    // 尽可能兼容几种常见结构
-    const orgList =
-      resp.data?.data ??
-      resp.data?.result ??
-      resp.data?.records ??
-      resp.data;
+    if (!Array.isArray(orgList)) return;
 
-    if (!Array.isArray(orgList)) {
-      console.warn("后端返回的不是数组，解析结果为：", orgList);
-      return; // 不继续往下映射，避免把 name 全搞成 undefined
-    }
-
-    const orgMap = new Map(orgList.map((o) => [o.id, o]));
-
-    locations.value = locations.value.map(loc => {
-      const org = orgMap.get(loc.id);
+    locations.value = locations.value.map((loc, idx) => {
+      const org = orgList[idx]; // 按顺序塞进点位
       if (!org) return loc;
+
       return {
         ...loc,
-        name: org.name || loc.name,
-        joinTime: org.joinTime || org.join_time || null
+        name: org.org_name || loc.name,
+        joinTime: org.joined_at || null,
+        logoUrl: org.logo_url || null,
+        creatorId: org.creator_id ?? null,
       };
     });
 
     console.log("加载后的地标：", locations.value);
   } catch (err) {
-    console.error("加载组织信息失败，将使用默认地标配置：", err);
-    // 不要 throw，让地图照常初始化
+    console.error("加载组织信息失败：", err);
   }
 }
 
@@ -647,23 +641,27 @@ onUnmounted(() => {
 
 .marker-label {
   position: absolute;
-  top: -20px;
+  top: 38px;                /* 想显示在下方就用正数；上方用 -24px 左右 */
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.75);
   color: white;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+
+  opacity: 1;               /* ✅ 默认显示 */
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   backdrop-filter: blur(4px);
+  z-index: 9999;
 }
 
+/* 悬浮时稍微“跳一下”更有反馈 */
 .custom-marker:hover .marker-label {
   opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .marker-hover .marker-pin {
