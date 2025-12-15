@@ -37,6 +37,7 @@
 
 <script setup>
 import axios from "axios";
+import { useRouter } from "vue-router";
 import L from "leaflet";
 import { onMounted, ref, onUnmounted, onBeforeUnmount } from "vue";
 import "leaflet/dist/leaflet.css";
@@ -61,6 +62,7 @@ defineExpose({
 // ----------------------------
 // 响应式数据
 // ----------------------------
+const router = useRouter();
 const map = ref(null);
 const activeLocation = ref(null);
 const apiBaseUrl = "http://localhost:8080"; // 你的后端地址
@@ -171,7 +173,14 @@ function getTypeName(type) {
 // 地图操作函数
 // ----------------------------
 function openLocation(loc) {
-  alert(`你点击了：${loc.name}\nID: ${loc.id}\n坐标: (${loc.x}, ${loc.y})`);
+  router.push({
+    name: "Org",              // 路由 name（你路由里要配成 Org）
+    params: { id: loc.id },   // /org/:id
+    query: {                  // 可选：带一些展示信息
+      name: loc.name || "",
+      joinTime: loc.joinTime || "",
+    },
+  });
 }
 
 function flyToLocation(loc) {
