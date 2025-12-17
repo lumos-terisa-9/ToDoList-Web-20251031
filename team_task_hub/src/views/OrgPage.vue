@@ -670,6 +670,7 @@ const BlockCard = {
   background: none;  /* 不要顶部渐变背景 */
   backdrop-filter: none;
   flex-wrap: wrap;   /* 小屏自动换行 */
+  perspective: 900px;
 }
 
 /* 按键本体：羊皮纸 + 金棕描边 + 轻纹理 */
@@ -683,6 +684,8 @@ const BlockCard = {
   padding: 14px 14px 12px;
   text-align: center;
   color: rgba(35, 25, 15, 0.92);
+  transform-style: preserve-3d;
+  will-change: transform;
 
   background:
     /* 角落云纹（兼容版：不用双 stop） */
@@ -746,7 +749,8 @@ const BlockCard = {
     linear-gradient(180deg, #efe7d9, #e6dccb);
 
   box-shadow:
-    0 16px 30px rgba(0,0,0,.22),
+    0 14px 28px rgba(0,0,0,.30),      /* 主投影 */
+    0 2px 0 rgba(255,255,255,.35),    /* 上沿高光 */
     inset 0 1px 0 rgba(255,255,255,.75);
 
   transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
@@ -818,21 +822,67 @@ const BlockCard = {
 
 /* hover/active */
 .tarot-tab:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 20px 36px rgba(0,0,0,.28);
-  filter: saturate(1.05);
+  transform:
+    translateY(-8px)
+    scale(1.02)
+    rotateX(2deg)
+    rotateY(-2deg);
+
+  box-shadow:
+    0 26px 48px rgba(0,0,0,.40),
+    0 8px 24px rgba(0,0,0,.25),
+    0 0 18px rgba(255,215,120,.25),
+    inset 0 1px 0 rgba(255,255,255,.85);
+
+  filter: saturate(1.08);
 }
+
 .tarot-tab:active{
-  transform: translateY(0);
+  transform:
+    translateY(-3px)
+    scale(0.99)
+    rotateX(0deg)
+    rotateY(0deg);
+}
+
+.tarot-tab{
+  position: relative;
+  z-index: 1;
+}
+
+.tarot-tab.is-active::before{
+  content: "";
+  position: absolute;
+  inset: -14px;                 /* 向外扩散 */
+  border-radius: 28px;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255,215,120,.45),
+      rgba(255,215,120,.18) 45%,
+      transparent 70%
+    );
+  filter: blur(14px);
+  z-index: -1;                  /* 在卡牌后面 */
 }
 
 /* 当前高亮（对应 activeKey） */
 .tarot-tab.is-active{
+  transform: translateY(-6px);
   box-shadow:
-    0 22px 40px rgba(0,0,0,.30),
-    0 0 0 2px rgba(168,120,70,.25),
-    0 0 22px rgba(168,120,70,.18),
-    inset 0 1px 0 rgba(255,255,255,.85);
+    0 30px 56px rgba(0,0,0,.45),
+    0 0 0 2px rgba(255,215,120,.35),
+    0 0 32px rgba(255,215,120,.55),   /* 外圈金色光 */
+    inset 0 1px 0 rgba(255,255,255,.95);
+}
+
+.tarot-tab.is-active .tarot-glyph{
+  box-shadow: 0 0 18px rgba(255,215,120,.55);
+}
+.tarot-tab.is-active .tarot-glyph::before{
+  text-shadow:
+    0 0 6px rgba(255,215,120,.85),
+    0 0 14px rgba(255,215,120,.65);
 }
 
 /* ========== Tabs Center (把塔罗牌放到页面中间) ========== */
