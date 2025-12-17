@@ -185,52 +185,55 @@ async function handleLogin() {
     const data = await response.json()
     console.log('登录响应数据:', data)
 
-    if (response.ok) {
-      // 登录成功 - 处理不同类型的响应格式
-      let token = ''
-      let userData = {}
+    if (response.ok && data.success) {
+      // 登录成功 - 根据提供的响应格式提取数据
+      const responseData = data.data
+      console.log('提取到的数据:', responseData)
 
-      // 根据不同的响应格式提取token和用户数据
-      if (typeof data === 'string') {
-        // 如果后端直接返回token字符串
-        token = data
-        userData = {
-          id: loginForm.value.identifier,
-          username: loginForm.value.identifier
-        }
-      } else if (data.token) {
-        // 如果返回的是对象且包含token字段
-        token = data.token
-        userData = data.user || {
-          id: loginForm.value.identifier,
-          username: loginForm.value.identifier
-        }
-      } else if (data.data && data.data.token) {
-        // 如果返回的是 { data: { token: ... } } 格式
-        token = data.data.token
-        userData = data.data.user || {
-          id: loginForm.value.identifier,
-          username: loginForm.value.identifier
-        }
-      } else {
-        // 其他格式，尝试直接使用data作为token
-        token = JSON.stringify(data)
-        userData = {
-          id: loginForm.value.identifier,
-          username: loginForm.value.identifier
-        }
+      // 提取token
+      const token = responseData.access_token
+      console.log('Token:', token)
+
+      // 提取用户信息 - 关键修改点
+      const userData = responseData.user || {}
+      console.log('用户数据:', userData)
+
+      // 确保userData有正确的字段名
+      const formattedUser = {
+        id: userData.user_id || userData.id,
+        username: userData.username,
+        email: userData.email
       }
 
-      console.log('提取到的token:', token)
-      console.log('用户数据:', userData)
+      console.log('格式化后的用户数据:', formattedUser)
+
+      // 验证是否有用户名
+      if (!formattedUser.username) {
+        console.error('登录响应中没有用户名字段')
+        alert('登录成功，但无法获取用户名信息')
+        return
+      }
 
       // 保存令牌到本地存储
       localStorage.setItem('token', token)
-      localStorage.setItem('currentUser', JSON.stringify(userData))
 
-      console.log('令牌已保存到localStorage')
+      // 保存完整的格式化用户数据
+      localStorage.setItem('currentUser', JSON.stringify(formattedUser))
 
-      emit('login-success', userData)
+      console.log('登录信息已保存到localStorage:', {
+        token: token.substring(0, 20) + '...',
+        user: formattedUser
+      })
+
+      // 触发自定义事件通知App.vue更新状态
+      window.dispatchEvent(new CustomEvent('user-login', {
+        detail: {
+          user: formattedUser,
+          token: token
+        }
+      }))
+
+      emit('login-success', formattedUser)
       close()
 
       // 跳转到个人页面
