@@ -36,6 +36,8 @@
 
 
 <script setup>
+import axios from "axios";
+import { useRouter } from "vue-router";
 import L from "leaflet";
 import { onMounted, ref, onUnmounted, onBeforeUnmount } from "vue";
 import "leaflet/dist/leaflet.css";
@@ -60,8 +62,34 @@ defineExpose({
 // ----------------------------
 // 响应式数据
 // ----------------------------
+const router = useRouter();
 const map = ref(null);
 const activeLocation = ref(null);
+const apiBaseUrl = "http://localhost:8080"; // 你的后端地址
+// 建一个 axios 实例，统一配置 baseURL 和 token
+const api = axios.create({
+  baseURL: apiBaseUrl,
+  timeout: 10000,
+});
+
+// 每次请求自动带上 token（根据后端的校验方式调整）
+api.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("token");
+  if (raw) {
+    try {
+      const obj = JSON.parse(raw);
+      const accessToken = obj?.data?.access_token;
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
+    } catch (e) {
+      // 如果 raw 本身就是 token 字符串（兼容老版本）
+      config.headers.Authorization = `Bearer ${raw}`;
+    }
+  }
+  return config;
+});
+
 
 // 地图图片尺寸（请根据你的图片实际尺寸修改）
 const imgWidth = 6000;
@@ -73,16 +101,50 @@ const initialZoom = ref(null);
 // ----------------------------
 // 点位数据
 // ----------------------------
+// ----------------------------
+// 点位数据（只负责坐标/type，名字和加入时间从后端填）
+// ----------------------------
 const locations = ref([
-  {id: 1, name: "德玛西亚", x: 22, y: 48, icon: demaciaIcon, type: "kingdom"},
-  {id: 2, name: "诺克萨斯", x: 45, y: 34, icon: noxusIcon, type: "empire"},
-  {id: 3, name: "艾欧尼亚", x: 78, y: 26, icon: ioniaIcon, type: "region"},
-  {id: 4, name: "皮尔特沃夫", x: 52, y: 58, icon: piltoverIcon, type: "city"},
+  { id: 1, x: 22, y: 48, icon: demaciaIcon, type: "kingdom", name: "", joinTime: null },
+  { id: 2, x: 45, y: 34, icon: noxusIcon,   type: "empire",  name: "", joinTime: null },
+  { id: 3, x: 78, y: 26, icon: ioniaIcon,   type: "region",  name: "", joinTime: null },
+  { id: 4, x: 52, y: 58, icon: piltoverIcon,type: "city",    name: "", joinTime: null },
 ]);
+
+
 
 // ----------------------------
 // 辅助函数
 // ----------------------------
+
+// 从后端加载所有“可在地图展示的组织”，名字&加入时间都来自数据库
+async function loadOrgInfoFromBackend() {
+  try {
+    const resp = await api.get("/api/organization/my-organizations");
+    const orgList = resp.data?.data;
+
+    if (!Array.isArray(orgList)) return;
+
+    locations.value = locations.value.map((loc, idx) => {
+      const org = orgList[idx]; // 按顺序塞进点位
+      if (!org) return loc;
+
+      return {
+        ...loc,
+        name: org.org_name || loc.name,
+        joinTime: org.joined_at || null,
+        logoUrl: org.logo_url || null,
+        creatorId: org.creator_id ?? null,
+      };
+    });
+
+    console.log("加载后的地标：", locations.value);
+  } catch (err) {
+    console.error("加载组织信息失败：", err);
+  }
+}
+
+
 function percentToPx(loc) {
   return [(loc.y / 100) * imgHeight, (loc.x / 100) * imgWidth];
 }
@@ -111,7 +173,14 @@ function getTypeName(type) {
 // 地图操作函数
 // ----------------------------
 function openLocation(loc) {
-  alert(`你点击了：${loc.name}\nID: ${loc.id}\n坐标: (${loc.x}, ${loc.y})`);
+  router.push({
+    name: "Org",              // 路由 name（你路由里要配成 Org）
+    params: { id: loc.id },   // /org/:id
+    query: {                  // 可选：带一些展示信息
+      name: loc.name || "",
+      joinTime: loc.joinTime || "",
+    },
+  });
 }
 
 function flyToLocation(loc) {
@@ -201,7 +270,8 @@ function handleResize() {
 // ----------------------------
 // 初始化地图
 // ----------------------------
-onMounted(() => {
+onMounted(async () => {
+  await loadOrgInfoFromBackend();
   try {
     // 原始边界
     const bounds = [
@@ -580,23 +650,27 @@ onUnmounted(() => {
 
 .marker-label {
   position: absolute;
-  top: -20px;
+  top: 38px;                /* 想显示在下方就用正数；上方用 -24px 左右 */
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.75);
   color: white;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+
+  opacity: 1;               /* ✅ 默认显示 */
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   backdrop-filter: blur(4px);
+  z-index: 9999;
 }
 
+/* 悬浮时稍微“跳一下”更有反馈 */
 .custom-marker:hover .marker-label {
   opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .marker-hover .marker-pin {

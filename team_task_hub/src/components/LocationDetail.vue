@@ -6,8 +6,8 @@
     </div>
     <div class="detail-content">
       <div class="detail-meta">
-        <span class="meta-item">坐标: {{ location.x }}, {{ location.y }}</span>
-        <span class="meta-item">类型: {{ typeName }}</span>
+        <span class="meta-item">加入时间: {{ joinedTimeText }}</span>
+        <span class="meta-item">类型: 社团</span>
       </div>
       <button class="action-btn compact" @click="$emit('open', location)">
         查看详情
@@ -17,25 +17,34 @@
 </template>
 
 <script setup>
-import {computed} from "vue";   // ✅ 必须要有
+import { computed } from "vue";
 
 const props = defineProps({
   location: {
     type: Object,
     default: null
   },
-  getTypeName: {
-    type: Function,
-    required: true
-  }
 });
 
-const typeName = computed(() =>
-  props.location ? props.getTypeName(props.location.type) : ""
-);
-
 defineEmits(["close", "open"]);
+
+// 格式化 joined_at / joinTime
+const joinedTimeText = computed(() => {
+  const t = props.location?.joinTime;
+  if (!t) return "暂无";
+
+  // 你后端现在会给 "0001-01-01T00:00:00Z" 这种默认值
+  if (typeof t === "string" && t.startsWith("0001-01-01")) return "暂无";
+
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return String(t);
+
+  // 输出 YYYY-MM-DD（你想要带时间我也可以给你改）
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+});
 </script>
+
 
 <style scoped>
 .location-detail {
