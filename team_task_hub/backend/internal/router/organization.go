@@ -18,9 +18,12 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 	orgMemberRepo := repositories.NewOrganizationMemberRepository(db)
 	orgAppRepo := repositories.NewOrganizationApplicationRepository(db)
 	codeRepo := repositories.NewVerificationCodeRepository(db)
+	activityRepo := repositories.NewActivityRepository(db)
+	participationRepo := repositories.NewActivityParticipationRepository(db)
 
 	orgService := services.NewOrganizationService(orgRepo, orgMemberRepo, orgAppRepo, codeRepo)
-	orgHandler := handlers.NewOrganizationHandler(orgService)
+	activityService := services.NewActivityService(activityRepo, participationRepo)
+	orgHandler := handlers.NewOrganizationHandler(orgService, activityService)
 
 	//需要超级管理员权限的路由
 	superAdminRoutes := router.Group("/admin/api/organization")
@@ -30,9 +33,9 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		superAdminRoutes.GET("/application/pending", orgHandler.GetPendingApplicationsHandler)
 
 		//更改组织信息
-		superAdminRoutes.PATCH("/:id/name", orgHandler.UpdateOrganizationNameHandler)
-		superAdminRoutes.PATCH("/:id/description", orgHandler.UpdateOrganizationDescriptionHandler)
-		superAdminRoutes.PATCH("/:id/logo", orgHandler.UpdateOrganizationLogoHandler)
+		superAdminRoutes.PATCH("/:orgID/name", orgHandler.UpdateOrganizationNameHandler)
+		superAdminRoutes.PATCH("/:orgID/description", orgHandler.UpdateOrganizationDescriptionHandler)
+		superAdminRoutes.PATCH("/:orgID/logo", orgHandler.UpdateOrganizationLogoHandler)
 	}
 
 	// 组织管理路由组 - 按权限级别分组
@@ -42,8 +45,11 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		creatorRoutes := organizationGroup.Group("")
 		creatorRoutes.Use(middleware.CreateAuthChain(authService, orgService, "creator")...)
 		{
+			//提拔降级管理员
 			creatorRoutes.PATCH("/:orgID/admin/:userID", orgHandler.PromoteToAdminHandler)
-			creatorRoutes.PATCH("/ownership/:id", orgHandler.TransferOrganizationOwnershipHandler)
+			creatorRoutes.DELETE("/:orgID/admin/:userID", orgHandler.CancelAdminHandler)
+			//转移组织所有权
+			creatorRoutes.PATCH("/ownership/:orgID", orgHandler.TransferOrganizationOwnershipHandler)
 		}
 
 		// 需要组织管理员权限的路由
@@ -53,15 +59,23 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			adminRoutes.GET("/application/pending-join", orgHandler.GetOrgPendingJoinApplicationsHandler)
 			adminRoutes.DELETE("/remove-member", orgHandler.RemoveOrganizationMemberHandler)
 			adminRoutes.POST("/change-organization", orgHandler.SubmitChangeOrganizationApplicationHandler)
-			adminRoutes.PUT("/:id/location", orgHandler.UpdateOrganizationLocationHandler)
-			adminRoutes.POST(":id/invite-codes", orgHandler.CreateCustomInviteCodeHandler)
+
+			//组织定位以及邀请码
+			adminRoutes.PUT("/:orgID/location", orgHandler.UpdateOrganizationLocationHandler)
+			adminRoutes.POST("/:orgID/invite-codes", orgHandler.CreateCustomInviteCodeHandler)
+
+			//组织活动相关
+			adminRoutes.POST("/:orgID/activities", orgHandler.CreateOrganizationActivityHandler)
+			adminRoutes.PATCH("/:orgID/activities/:activityID/cancel", orgHandler.CancelActivityHandler)
+			adminRoutes.PATCH("/:orgID/activities/:activityID", orgHandler.UpdateActivityHandler)
+			adminRoutes.GET("/:orgID/activities/assigned", orgHandler.GetOrgAssignedActivitiesHandler)
 		}
 
 		// 需要组织成员权限的路由
 		memberRoutes := organizationGroup.Group("")
 		memberRoutes.Use(middleware.CreateAuthChain(authService, orgService, "member")...)
 		{
-
+			memberRoutes.GET("/:orgID/activities/internal", orgHandler.GetOrgInternalActivitiesHandler)
 		}
 
 		// 仅需JWT认证的路由（无特定组织权限要求）
@@ -86,11 +100,20 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 
 			//用户查找组织
 			baseAuthRoutes.GET("/search", orgHandler.SearchOrganizationsHandler)
-			baseAuthRoutes.GET("/:id", orgHandler.GetOrganizationByIDHandler)
+			baseAuthRoutes.GET("/:orgID", orgHandler.GetOrganizationByIDHandler)
 			baseAuthRoutes.GET("/nearby", orgHandler.SearchNearbyOrganizationsHandler)
 
 			//用户快速加入组织
 			baseAuthRoutes.POST("/join-with-code", orgHandler.JoinOrganizationWithCodeHandler)
+
+			//用户查询公开组织活动
+			baseAuthRoutes.GET("/:orgID/activities/public", orgHandler.GetOrgPublicActivitiesHandler)
+
+			//查看活动的参与者信息
+			baseAuthRoutes.GET("/activities/:activityID/participants", orgHandler.GetActivityParticipantsHandler)
+
+			//参与活动
+			baseAuthRoutes.POST("/activities/:activityID/participate", orgHandler.ParticipateActivityHandler)
 		}
 	}
 }
