@@ -49,16 +49,6 @@
                     </span>
                   </button>
 
-                  <div v-if="hasUserLocation" class="location-info">
-                    <div class="location-coords">
-                      纬度: {{ userLocation.latitude.toFixed(6) }},
-                      经度: {{ userLocation.longitude.toFixed(6) }}
-                    </div>
-                    <div v-if="userLocation.accuracy" class="location-accuracy">
-                      精度: ±{{ userLocation.accuracy.toFixed(1) }}米
-                    </div>
-                  </div>
-
                   <button
                     class="search-btn primary wide-action-btn"
                     @click="searchNearbyOrganizations"
@@ -86,9 +76,6 @@
                   <div v-else-if="nearbyOrganizations.length === 0 && hasSearched" class="empty-state">
                     <div class="empty-icon">🏢</div>
                     <p class="empty-text">该位置附近暂无组织</p>
-                    <p class="empty-subtext">
-                      当前位置: {{ userLocation.latitude.toFixed(4) }}, {{ userLocation.longitude.toFixed(4) }}
-                    </p>
                   </div>
 
                   <div v-else-if="!hasSearched" class="empty-state">
@@ -625,7 +612,7 @@ async function showLocationFeature() {
       accuracy: location.accuracy
     }
 
-    console.log('位置获取成功:', userLocation.value)
+    console.log('已获取当前位置')
   } catch (error) {
     console.error('获取位置失败:', error)
     alert(`获取位置失败: ${error.message}`)
@@ -976,29 +963,6 @@ watch(() => props.isVisible, (newVal) => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* 位置信息显示 */
-.location-info {
-  width: 95%;
-  max-width: 700px;
-  margin: 0 auto 16px auto;
-  padding: 12px 16px;
-  background: #f0f9ff;
-  border: 1px solid #bee3f8;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #2c5282;
-}
-
-.location-coords {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.location-accuracy {
-  color: #718096;
-  font-size: 11px;
 }
 
 /* 搜索提示 */
@@ -1755,11 +1719,6 @@ watch(() => props.isVisible, (newVal) => {
 
   .join-dialog-wide {
     width: 95vw;
-  }
-
-  .location-info {
-    width: 95%;
-    max-width: 100%;
   }
 }
 
