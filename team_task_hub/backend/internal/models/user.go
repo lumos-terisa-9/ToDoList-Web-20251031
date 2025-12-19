@@ -13,3 +13,10 @@ type User struct {
 func (User) TableName() string {
 	return "users"
 }
+
+// UserInfo 简短用户数据
+type UserInfo struct {
+	ID        uint   `json:"id"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
+}

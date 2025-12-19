@@ -11,12 +11,14 @@ import (
 )
 
 type OrganizationHandler struct {
-	orgService *services.OrganizationService
+	orgService      *services.OrganizationService
+	activityService *services.ActivityService
 }
 
-func NewOrganizationHandler(orgService *services.OrganizationService) *OrganizationHandler {
+func NewOrganizationHandler(orgService *services.OrganizationService, activityService *services.ActivityService) *OrganizationHandler {
 	return &OrganizationHandler{
-		orgService: orgService,
+		orgService:      orgService,
+		activityService: activityService,
 	}
 }
 
@@ -560,10 +562,10 @@ func (h *OrganizationHandler) SearchOrganizationsHandler(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "无效的组织ID"})
 // @Failure 404 {object} ErrorResponse "组织不存在"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "查询组织失败: 组织不存在"})
-// @Router /api/organization/{id} [get]
+// @Router /api/organization/{orgID} [get]
 func (h *OrganizationHandler) GetOrganizationByIDHandler(c *gin.Context) {
 	// 获取并验证路径参数
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -617,10 +619,10 @@ type UpdateOrganizationNameRequest struct {
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /admin/api/organization/{id}/name [patch]
+// @Router /admin/api/organization/{orgID}/name [patch]
 func (h *OrganizationHandler) UpdateOrganizationNameHandler(c *gin.Context) {
 	// 从路径参数获取组织ID
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -677,9 +679,9 @@ type UpdateOrganizationDescriptionRequest struct {
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /admin/api/organization/{id}/description [patch]
+// @Router /admin/api/organization/{orgID}/description [patch]
 func (h *OrganizationHandler) UpdateOrganizationDescriptionHandler(c *gin.Context) {
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -734,9 +736,9 @@ type UpdateOrganizationLogoRequest struct {
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /admin/api/organization/{id}/logo [patch]
+// @Router /admin/api/organization/{orgID}/logo [patch]
 func (h *OrganizationHandler) UpdateOrganizationLogoHandler(c *gin.Context) {
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -794,10 +796,10 @@ type UpdateOrganizationLocationRequest struct {
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 404 {object} ErrorResponse "组织不存在"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/location [put]
+// @Router /api/organization/{orgID}/location [put]
 func (h *OrganizationHandler) UpdateOrganizationLocationHandler(c *gin.Context) {
 	// 获取组织ID
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -806,7 +808,6 @@ func (h *OrganizationHandler) UpdateOrganizationLocationHandler(c *gin.Context) 
 		})
 		return
 	}
-
 	// 绑定和验证请求体
 	var request UpdateOrganizationLocationRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -816,7 +817,6 @@ func (h *OrganizationHandler) UpdateOrganizationLocationHandler(c *gin.Context) 
 		})
 		return
 	}
-
 	// 调用服务层方法
 	err = h.orgService.UpdateOrganizationLocation(uint(orgID), request.Latitude, request.Longitude)
 	if err != nil {
@@ -864,9 +864,9 @@ type TransferOrganizationOwnershipRequest struct {
 // @Success 200 {object} SuccessResponse "转移成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/ownership [patch]
+// @Router /api/organization/{orgID}/ownership [patch]
 func (h *OrganizationHandler) TransferOrganizationOwnershipHandler(c *gin.Context) {
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -1064,6 +1064,64 @@ func (h *OrganizationHandler) PromoteToAdminHandler(c *gin.Context) {
 	})
 }
 
+// CancelAdminHandler 取消管理员权限（降级为普通成员）
+// @Summary 取消管理员权限
+// @Description 组织创建者将指定管理员降级为普通组织成员
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param userID path int true "要取消管理员权限的用户ID"
+// @Success 200 {object} SuccessResponse "取消管理员权限成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 403 {object} ErrorResponse "权限不足（非组织创建者操作）"
+// @Failure 404 {object} ErrorResponse "组织或用户不存在"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/admin/{userID} [delete]
+func (h *OrganizationHandler) CancelAdminHandler(c *gin.Context) {
+	// 解析并验证路径参数
+	orgIDStr := c.Param("orgID")
+	userIDStr := c.Param("userID")
+
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的用户ID格式",
+		})
+		return
+	}
+
+	// 调用服务层的CancelAdmin方法
+	err = h.orgService.CancelAdmin(uint(orgID), uint(userID))
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "取消管理员权限失败: " + errorMsg,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "管理员权限已成功取消，该用户现为普通成员",
+	})
+}
+
 // SearchNearbyOrganizationsHandler 查询附近组织
 // @Summary 查询附近组织
 // @Description 根据用户经纬度生成Geohash前缀，查询约50米范围内的附近组织
@@ -1147,10 +1205,10 @@ type CreateInviteCodeRequest struct {
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 403 {object} ErrorResponse "权限不足"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/{id}/invite-codes [post]
+// @Router /api/organization/{orgID}/invite-codes [post]
 func (h *OrganizationHandler) CreateCustomInviteCodeHandler(c *gin.Context) {
 	// 获取并验证组织ID
-	orgIDStr := c.Param("id")
+	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1279,5 +1337,391 @@ func (h *OrganizationHandler) JoinOrganizationWithCodeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "成功加入组织",
+	})
+}
+
+//组织活动相关接口
+
+// CreateOrganizationActivityHandler 创建组织活动
+// @Summary 创建组织活动
+// @Description 在指定组织下创建新的活动
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param request body services.CreateActivityRequest true "创建活动请求"
+// @Success 201 {object} SuccessResponse "创建成功"
+// @Router /api/organization/{orgID}/activities [post]
+func (h *OrganizationHandler) CreateOrganizationActivityHandler(c *gin.Context) {
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	var req services.CreateActivityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用活动服务层
+	err = h.activityService.CreateActivity(uint(orgID), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "创建活动失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "活动创建成功",
+	})
+}
+
+// CancelActivityRequest 定义取消活动的请求体结构
+type CancelActivityRequest struct {
+	Reason string `json:"reason" binding:"required,min=1,max=500" example:"因天气原因取消"`
+}
+
+// CancelActivityHandler 取消组织活动
+// @Summary 取消组织活动
+// @Description 将指定组织的活动状态标记为已取消，并记录取消原因
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "活动ID"
+// @Param request body CancelActivityRequest true "取消活动请求"
+// @Success 200 {object} SuccessResponse "取消成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/activities/{activityID}/cancel [patch]
+func (h *OrganizationHandler) CancelActivityHandler(c *gin.Context) {
+	// 获取并验证路径参数
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 绑定并验证请求体
+	var req CancelActivityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用活动服务层
+	err = h.activityService.CancelActivity(uint(activityID), req.Reason)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "取消活动失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "活动已成功取消",
+	})
+}
+
+// UpdateActivityHandler 更新活动信息
+// @Summary 更新活动信息
+// @Description 更新指定活动的详细信息，支持部分更新（只更新提供的字段）
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "活动ID"
+// @Param request body services.UpdateActivityRequest true "更新活动请求"
+// @Success 200 {object} SuccessResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/activities/{activityID} [patch]
+func (h *OrganizationHandler) UpdateActivityHandler(c *gin.Context) {
+	// 获取并验证路径参数
+	activityIDStr := c.Param("activityID")
+
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 绑定并验证请求体
+	var req services.UpdateActivityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.UpdateActivity(uint(activityID), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "更新活动失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "活动更新成功",
+	})
+}
+
+// GetOrgPublicActivitiesHandler 获取组织的公开活动列表
+// @Summary 获取组织的公开活动列表
+// @Description 获取指定组织下未结束、未取消的公开活动列表，任何已登录用户可访问
+// @Tags 活动查询
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Success 200 {object} SuccessResponse "获取成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/activities/public [get]
+func (h *OrganizationHandler) GetOrgPublicActivitiesHandler(c *gin.Context) {
+	//传入并且验证参数
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的组织ID格式"})
+		return
+	}
+
+	// 调用服务层，明确查询公开活动
+	activities, err := h.activityService.GetOrgActivities(uint(orgID), "public")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取公开活动列表失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取公开活动列表成功",
+		"data":    activities,
+	})
+}
+
+// GetOrgInternalActivitiesHandler 获取组织的内部活动（仅成员可见）
+// @Summary 获取组织的内部活动列表
+// @Description 获取指定组织下未结束、未取消的仅组织成员可参与的活动列表，必须是组织成员才能访问
+// @Tags 活动查询
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Success 200 {object} SuccessResponse "获取成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 403 {object} ErrorResponse "非组织成员，无权访问"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/activities/internal [get]
+func (h *OrganizationHandler) GetOrgInternalActivitiesHandler(c *gin.Context) {
+	//传入并且验证参数
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的组织ID格式"})
+		return
+	}
+
+	// 调用服务层，明确查询非公开活动
+	activities, err := h.activityService.GetOrgActivities(uint(orgID), "org_only")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取内部活动列表失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取内部活动列表成功",
+		"data":    activities,
+	})
+}
+
+// GetOrgAssignedActivitiesHandler 获取组织的指派活动（高权限可见）
+// @Summary 获取组织的指派活动列表
+// @Description 获取指定组织下未结束、未取消的仅由管理员指派参与的活动列表，需要组织管理员权限
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Success 200 {object} SuccessResponse "获取成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 403 {object} ErrorResponse "非管理员，无权访问"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/{orgID}/activities/assigned [get]
+func (h *OrganizationHandler) GetOrgAssignedActivitiesHandler(c *gin.Context) {
+	//传入并且验证参数
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的组织ID格式"})
+		return
+	}
+
+	// 调用服务层，明确查询高权限活动
+	activities, err := h.activityService.GetOrgActivities(uint(orgID), "admin_assign")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取指派活动列表失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取指派活动列表成功",
+		"data":    activities,
+	})
+}
+
+// GetActivityParticipantsHandler 获取活动的参与者基本信息列表
+// @Summary 获取活动的参与者基本信息列表
+// @Description 根据活动ID，获取参与该活动的用户基本信息（包括姓名、账号、头像）
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "活动ID"
+// @Success 200 {object} SuccessResponse "获取成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/activities/{activityID}/participants [get]
+func (h *OrganizationHandler) GetActivityParticipantsHandler(c *gin.Context) {
+	// 获取并验证路径参数
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 调用服务层
+	userInfos, err := h.activityService.GetActivityUsers(uint(activityID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "获取活动参与者失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取活动参与者成功",
+		"data": gin.H{
+			"participants": userInfos,
+			"total_count":  len(userInfos),
+		},
+	})
+}
+
+// ParticipateActivityHandler 用户参加活动
+// @Summary 用户参加活动/领取活动
+// @Description 用户参加指定活动，系统会检查是否重复参加，也就是领取待办的意思
+// @Tags 活动参与
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "活动ID"
+// @Success 201 {object} SuccessResponse "参加成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误或用户已参加"
+// @Failure 404 {object} ErrorResponse "活动不存在"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/activities/{activityID}/participate [post]
+func (h *OrganizationHandler) ParticipateActivityHandler(c *gin.Context) {
+	// 获取并验证路径参数（活动ID）
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 从JWT中间件设置的上下文中获取当前用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "无法识别用户身份，请重新登录",
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.ParticipateActivity(uint(activityID), userID.(uint))
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		// 根据服务层返回的错误信息细化HTTP状态码
+		switch {
+		case strings.Contains(errorMsg, "已经参加过"):
+			statusCode = http.StatusBadRequest
+		case strings.Contains(errorMsg, "活动不存在"):
+			statusCode = http.StatusNotFound
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "参加活动失败: " + errorMsg,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "成功参加活动",
 	})
 }

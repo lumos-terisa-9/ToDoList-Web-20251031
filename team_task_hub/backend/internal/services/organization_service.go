@@ -87,6 +87,7 @@ func (s *OrganizationService) JoinOrganization(orgID, userID uint) error {
 	member := &models.OrganizationMember{
 		OrganizationID: orgID,
 		UserID:         userID,
+		JoinedAt:       time.Now(),
 	}
 
 	if err := s.orgMemberRepo.Create(member); err != nil {
@@ -564,6 +565,15 @@ func (s *OrganizationService) CreateAdmin(orgID, userID uint) error {
 	err := s.orgMemberRepo.UpdateRole(orgID, userID, "admin")
 	if err != nil {
 		return fmt.Errorf("创建新管理员失败，原因:%v", err)
+	}
+	return nil
+}
+
+// CancelAdmin 组织者取消管理员（降级）
+func (s *OrganizationService) CancelAdmin(orgID, userID uint) error {
+	err := s.orgMemberRepo.UpdateRole(orgID, userID, "member")
+	if err != nil {
+		return fmt.Errorf("取消管理员失败，原因：%v", err)
 	}
 	return nil
 }
