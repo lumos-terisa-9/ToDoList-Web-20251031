@@ -147,3 +147,48 @@ func (r *ActivityParticipationRepository) FindParticipatedUserIDs(activityID uin
 	}
 	return participatedUserIDs, nil
 }
+
+// BatchCreateForcedAssignments 批量创建强制分配的活动参与记录
+func (r *ActivityParticipationRepository) BatchCreateForcedAssignments(activityID uint, userIDs []uint) error {
+	// 准备需要插入的记录
+	var participationsToCreate []models.ActivityParticipation
+	for _, userID := range userIDs {
+		participationsToCreate = append(participationsToCreate, models.ActivityParticipation{
+			ActivityID: activityID,
+			UserID:     userID,
+			IsUnread:   true,
+		})
+	}
+
+	// 使用事务和批量插入，确保操作原子性并提升效率
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 使用 CreateInBatches 进行批量插入
+		return tx.CreateInBatches(participationsToCreate, 100).Error
+	})
+}
+
+// MarkActivityAsRead 标记活动为已读
+func (r *ActivityParticipationRepository) MarkActivityAsRead(userID, activityID uint) error {
+	// 直接更新符合条件的记录
+	result := r.db.Model(&models.ActivityParticipation{}).
+		Where("user_id = ? AND activity_id = ? AND is_unread = true", userID, activityID).
+		Update("is_unread", false)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+// DeleteCancelledActivity 删除用户已取消的活动记录
+func (r *ActivityParticipationRepository) DeleteCancelledActivity(userID, activityID uint) error {
+	result := r.db.Where("user_id = ? AND activity_id = ? AND status = ?",
+		userID, activityID, "cancelled").Delete(&models.ActivityParticipation{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}

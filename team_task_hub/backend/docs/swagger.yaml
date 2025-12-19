@@ -1,4 +1,22 @@
 definitions:
+  handlers.BatchAssignActivityRequest:
+    properties:
+      activity_id:
+        example: 123
+        type: integer
+      user_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - activity_id
+    - user_ids
+    type: object
   handlers.CancelActivityRequest:
     properties:
       reason:
@@ -147,6 +165,20 @@ definitions:
         type: string
       success:
         type: boolean
+    type: object
+  handlers.GetParticipationStatusRequest:
+    properties:
+      user_ids:
+        example:
+        - 101
+        - 102
+        - 103
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - user_ids
     type: object
   handlers.JoinOrganizationApplicationRequest:
     properties:
@@ -499,7 +531,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 更新请求
@@ -542,7 +574,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 更新请求
@@ -585,7 +617,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 更新请求
@@ -1093,7 +1125,7 @@ paths:
       - description: 组织ID
         in: path
         minimum: 1
-        name: id
+        name: orgID
         required: true
         type: integer
       produces:
@@ -1484,7 +1516,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 邀请码创建请求
@@ -1535,7 +1567,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 位置更新请求
@@ -1586,7 +1618,7 @@ paths:
         type: string
       - description: 组织ID
         in: path
-        name: id
+        name: orgID
         required: true
         type: integer
       - description: 转移请求
@@ -1744,6 +1776,87 @@ paths:
       summary: 用户参加活动/领取活动
       tags:
       - 活动参与
+  /api/organization/activities/{activityID}/participation-status:
+    post:
+      consumes:
+      - application/json
+      description: 根据活动ID和用户ID列表，返回已参与该活动的用户ID列表，用于管理员分配活动的时候后端告诉它某些人已经参与，无法重复参与
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GetParticipationStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量获取用户参与状态
+      tags:
+      - 活动管理
+  /api/organization/activities/batch-assign:
+    post:
+      consumes:
+      - application/json
+      description: 组织管理员将指定活动强制分配给一批用户（用户均未参与），并标记为“未读”状态
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 分配请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchAssignActivityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量分配活动
+      tags:
+      - 活动管理
   /api/organization/application/{id}:
     delete:
       consumes:
@@ -1958,6 +2071,152 @@ paths:
       summary: 使用邀请码加入组织
       tags:
       - 加入组织
+  /api/organization/me/activities/{activityID}/mark-as-read:
+    patch:
+      consumes:
+      - application/json
+      description: 将指定活动标记为已读状态
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记活动为已读
+      tags:
+      - 活动通知
+  /api/organization/me/activities/cancelled:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户所有已取消（状态为cancelled）的活动列表
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户已取消的活动
+      tags:
+      - 活动通知
+  /api/organization/me/activities/cancelled/{activityID}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据活动ID，删除当前用户指定的、状态为“已取消”的活动参与记录
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 要删除的活动记录ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 身份验证失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: 记录未找到
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除已取消的活动记录
+      tags:
+      - 活动通知
+  /api/organization/me/activities/unread:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的所有未读活动列表
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户未读活动
+      tags:
+      - 活动通知
   /api/organization/my-organizations:
     get:
       consumes:

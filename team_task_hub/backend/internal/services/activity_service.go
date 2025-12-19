@@ -180,6 +180,56 @@ func (s *ActivityService) ParticipateActivity(activityID, userID uint) error {
 	return nil
 }
 
+// ForceAssignActivityToUsers 强制分配活动给一批用户
+func (s *ActivityService) ForceAssignActivityToUsers(activityID uint, userIDs []uint) error {
+	// 基础验证
+	if len(userIDs) == 0 {
+		return fmt.Errorf("用户ID列表不能为空")
+	}
+
+	// 调用数据访问层执行批量分配
+	return s.participationRepo.BatchCreateForcedAssignments(activityID, userIDs)
+}
+
+// GetUnreadActivitiesByUserID 获取用户所有未读活动
+func (s *ActivityService) GetUnreadActivitiesByUserID(userID uint) ([]models.Activity, error) {
+	activities, err := s.activityRepo.FindUnreadActivitiesByUserID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户未读活动失败，原因：%v", err)
+	}
+
+	return activities, err
+}
+
+// MarkActivityAsRead 标记活动为已读
+func (s *ActivityService) MarkActivityAsRead(userID, activityID uint) error {
+	if err := s.participationRepo.MarkActivityAsRead(userID, activityID); err != nil {
+		return fmt.Errorf("将活动标记为已读失败，原因:%v", err)
+	}
+
+	return nil
+}
+
+// GetCancelledActivitiesByUserID 获取用户已经取消的活动，组织取消的
+func (s *ActivityService) GetCancelledActivitiesByUserID(userID uint) ([]models.Activity, error) {
+	activities, err := s.activityRepo.FindCancelledActivitiesByUserID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户已取消活动失败，原因：%v", err)
+	}
+
+	return activities, err
+}
+
+// DeleteCancelledActivity 删除用户已取消的活动记录
+func (s *ActivityService) DeleteCancelledActivity(userID, activityID uint) error {
+	err := s.participationRepo.DeleteCancelledActivity(userID, activityID)
+	if err != nil {
+		return fmt.Errorf("删除已取消活动失败: %v", err)
+	}
+
+	return nil
+}
+
 // GetParticipationStatus 批量获取用户的参与状态
 func (s *ActivityService) GetParticipationStatus(activityID uint, userIDs []uint) ([]uint, error) {
 	var participatedIDs []uint

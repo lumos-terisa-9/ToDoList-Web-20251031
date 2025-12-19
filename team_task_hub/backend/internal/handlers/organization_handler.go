@@ -1778,7 +1778,7 @@ func (h *OrganizationHandler) ParticipateActivityHandler(c *gin.Context) {
 
 // GetParticipationStatusRequest 定义请求体结构
 type GetParticipationStatusRequest struct {
-	UserIDs []uint `json:"user_ids" binding:"required,min=1" example:"[101,102,103]"`
+	UserIDs []uint `json:"user_ids" binding:"required,min=1" example:"101,102,103"`
 }
 
 // GetParticipationStatusHandler 批量获取用户参与状态
@@ -1835,5 +1835,222 @@ func (h *OrganizationHandler) GetParticipationStatusHandler(c *gin.Context) {
 			"participated_user_ids": participatedIDs,
 			"total_count":           len(participatedIDs),
 		},
+	})
+}
+
+// BatchAssignActivityRequest 批量分配活动请求体
+type BatchAssignActivityRequest struct {
+	ActivityID uint   `json:"activity_id" binding:"required" example:"123"`
+	UserIDs    []uint `json:"user_ids" binding:"required,min=1" example:"1,2,3"`
+}
+
+// BatchAssignActivityHandler 批量分配活动
+// @Summary 批量分配活动
+// @Description 组织管理员将指定活动强制分配给一批用户（用户均未参与），并标记为“未读”状态
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param request body BatchAssignActivityRequest true "分配请求"
+// @Success 201 {object} SuccessResponse "分配成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/activities/batch-assign [post]
+func (h *OrganizationHandler) BatchAssignActivityHandler(c *gin.Context) {
+	var req BatchAssignActivityRequest
+
+	// 绑定并验证请求体
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请求参数无效: " + err.Error()})
+		return
+	}
+
+	// 调用服务层
+	if err := h.activityService.ForceAssignActivityToUsers(req.ActivityID, req.UserIDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "分配活动失败: " + err.Error()})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "活动已成功分配给指定用户",
+	})
+}
+
+// GetUnreadActivitiesHandler 获取用户未读活动
+// @Summary 获取用户未读活动
+// @Description 获取当前用户的所有未读活动列表
+// @Tags 活动通知
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} SuccessResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/me/activities/unread [get]
+func (h *OrganizationHandler) GetUnreadActivitiesHandler(c *gin.Context) {
+	// 从JWT中间件直接获取当前用户ID
+	userID := c.GetUint("userID")
+
+	// 调用服务层
+	activities, err := h.activityService.GetUnreadActivitiesByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "获取未读活动失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取未读活动成功",
+		"data": gin.H{
+			"activities":  activities,
+			"total_count": len(activities),
+		},
+	})
+}
+
+// MarkActivityAsReadHandler 标记活动为已读
+// @Summary 标记活动为已读
+// @Description 将指定活动标记为已读状态
+// @Tags 活动通知
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param activityID path int true "活动ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/me/activities/{activityID}/mark-as-read [patch]
+func (h *OrganizationHandler) MarkActivityAsReadHandler(c *gin.Context) {
+	// 从JWT中间件获取当前用户ID
+	userID := c.GetUint("userID")
+
+	// 获取并验证活动ID参数
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.MarkActivityAsRead(userID, uint(activityID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "标记已读失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "活动已成功标记为已读",
+	})
+}
+
+// GetCancelledActivitiesHandler 获取用户已取消的活动
+// @Summary 获取用户已取消的活动
+// @Description 获取当前用户所有已取消（状态为cancelled）的活动列表
+// @Tags 活动通知
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} SuccessResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/me/activities/cancelled [get]
+func (h *OrganizationHandler) GetCancelledActivitiesHandler(c *gin.Context) {
+	// 从JWT中间件获取当前用户ID
+	userID := c.GetUint("userID")
+
+	// 调用服务层获取已取消的活动
+	activities, err := h.activityService.GetCancelledActivitiesByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "获取已取消活动失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "获取已取消活动成功",
+		"data": gin.H{
+			"activities":  activities,
+			"total_count": len(activities),
+		},
+	})
+}
+
+// DeleteCancelledActivityHandler 删除用户已取消的活动记录
+// @Summary 删除已取消的活动记录
+// @Description 根据活动ID，删除当前用户指定的、状态为“已取消”的活动参与记录
+// @Tags 活动通知
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param activityID path int true "要删除的活动记录ID"
+// @Success 200 {object} SuccessResponse "删除成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 401 {object} ErrorResponse "身份验证失败"
+// @Failure 404 {object} ErrorResponse "记录未找到"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/me/activities/cancelled/{activityID} [delete]
+func (h *OrganizationHandler) DeleteCancelledActivityHandler(c *gin.Context) {
+	// 从JWT中间件获取当前用户ID
+	userID := c.GetUint("userID")
+
+	// 获取并验证路径参数（活动ID）
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.DeleteCancelledActivity(userID, uint(activityID))
+	if err != nil {
+		// 根据服务层返回的错误信息细化HTTP状态码
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		if strings.Contains(errorMsg, "未找到") || strings.Contains(errorMsg, "不存在") {
+			statusCode = http.StatusNotFound
+		} else if strings.Contains(errorMsg, "未取消") || strings.Contains(errorMsg, "不是已取消状态") {
+			statusCode = http.StatusBadRequest
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "删除已取消活动失败: " + errorMsg,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "已取消的活动记录删除成功",
 	})
 }

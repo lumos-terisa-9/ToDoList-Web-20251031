@@ -120,3 +120,31 @@ func (r *ActivityParticipationRepository) FindUsersByActivityID(activityID uint)
 	}
 	return userInfos, nil
 }
+
+// FindUnreadActivitiesByUserID 根据用户ID查询所有未读活动
+func (r *ActivityRepository) FindUnreadActivitiesByUserID(userID uint) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	// 直接查询用户所有未读活动
+	err := r.db.Model(&models.Activity{}).
+		Select("activities.*").
+		Joins("INNER JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ? AND activity_participations.is_unread = ?", userID, true).
+		Find(&activities).Error
+
+	return activities, err
+}
+
+// FindCancelledActivitiesByUserID 查询用户已取消的活动
+func (r *ActivityRepository) FindCancelledActivitiesByUserID(userID uint) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	// 查询用户参与的活动，且状态为cancelled
+	err := r.db.Model(&models.Activity{}).
+		Select("activities.*").
+		Joins("INNER JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ? AND activity_participations.status = ?", userID, "cancelled").
+		Find(&activities).Error
+
+	return activities, err
+}

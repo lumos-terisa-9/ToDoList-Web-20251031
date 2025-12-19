@@ -69,6 +69,7 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			adminRoutes.PATCH("/:orgID/activities/:activityID/cancel", orgHandler.CancelActivityHandler)
 			adminRoutes.PATCH("/:orgID/activities/:activityID", orgHandler.UpdateActivityHandler)
 			adminRoutes.GET("/:orgID/activities/assigned", orgHandler.GetOrgAssignedActivitiesHandler)
+			adminRoutes.POST("/activities/batch-assign", orgHandler.BatchAssignActivityHandler)
 		}
 
 		// 需要组织成员权限的路由
@@ -121,6 +122,14 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 
 			//参与活动
 			baseAuthRoutes.POST("/activities/:activityID/participate", orgHandler.ParticipateActivityHandler)
+
+			//未读活动
+			baseAuthRoutes.GET("/me/activities/unread", orgHandler.GetUnreadActivitiesHandler)
+			baseAuthRoutes.PATCH("/me/activities/:activityID/mark-as-read", orgHandler.MarkActivityAsReadHandler)
+
+			//已经取消的活动
+			baseAuthRoutes.GET("/me/activities/cancelled", orgHandler.GetCancelledActivitiesHandler)
+			baseAuthRoutes.DELETE("/me/activities/cancelled/:activityID", orgHandler.DeleteCancelledActivityHandler)
 		}
 	}
 }
