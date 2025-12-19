@@ -113,6 +113,18 @@
 
                   <div class="application-footer">
                     <div class="application-id">申请ID: {{ application.id }}</div>
+                    <div class="application-actions">
+                      <!-- 只有待审核状态才显示取消按钮 -->
+                      <button
+                        v-if="application.status === 'pending'"
+                        class="cancel-btn"
+                        @click.stop="cancelApplication(application.id)"
+                        :disabled="cancellingApplicationId === application.id"
+                      >
+                        <span v-if="cancellingApplicationId === application.id" class="cancelling-spinner"></span>
+                        {{ cancellingApplicationId === application.id ? '取消中...' : '取消申请' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -140,6 +152,7 @@ const API_BASE = 'http://localhost:8080/api'
 const loading = ref(false)
 const applications = ref([])
 const expandedApplications = ref([]) // 存储展开的申请ID
+const cancellingApplicationId = ref(null) // 正在取消的申请ID
 
 // 计算属性
 const totalApplications = computed(() => applications.value.length)
@@ -192,6 +205,7 @@ async function fetchApplications() {
   loading.value = true
   applications.value = []
   expandedApplications.value = [] // 清空展开状态
+  cancellingApplicationId.value = null // 重置取消状态
 
   try {
     console.log('开始获取申请列表...')
@@ -258,6 +272,98 @@ async function fetchApplications() {
   } finally {
     loading.value = false
     console.log('获取申请列表完成')
+  }
+}
+
+// 取消申请
+async function cancelApplication(applicationId) {
+  const token = getToken()
+  if (!token) {
+    alert('请先登录')
+    return
+  }
+
+  // 确认操作
+  if (!confirm('确定要取消这条申请吗？此操作不可撤销。')) {
+    return
+  }
+
+  cancellingApplicationId.value = applicationId
+
+  try {
+    console.log(`开始取消申请 ${applicationId}...`)
+
+    const response = await fetch(`${API_BASE}/organization/application/${applicationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+
+    console.log('取消申请响应状态:', response.status, response.statusText)
+
+    // 获取原始响应文本
+    const responseText = await response.text()
+    console.log('取消申请原始响应文本:', responseText)
+
+    // 尝试解析JSON
+    let data
+    try {
+      if (responseText.trim()) {
+        data = JSON.parse(responseText)
+        console.log('取消申请解析成功:', data)
+      } else {
+        console.log('响应为空')
+        data = {}
+      }
+    } catch (parseError) {
+      console.error('JSON解析失败:', parseError)
+      throw new Error('服务器返回格式错误')
+    }
+
+    // 处理响应
+    if (response.ok) {
+      if (data.success === true || response.status === 200 || response.status === 204) {
+        alert('申请已成功取消')
+
+        // 更新本地数据：将申请状态改为已取消
+        const index = applications.value.findIndex(app => app.id === applicationId)
+        if (index !== -1) {
+          applications.value[index].status = 'cancelled'
+
+          // 如果该申请是展开的，关闭它
+          const expandedIndex = expandedApplications.value.indexOf(applicationId)
+          if (expandedIndex !== -1) {
+            expandedApplications.value.splice(expandedIndex, 1)
+          }
+        }
+
+        // 刷新列表
+        await fetchApplications()
+      } else {
+        console.warn('API返回success为false:', data.message)
+        alert(data.message || '取消申请失败')
+      }
+    } else {
+      console.error('HTTP错误:', response.status, data)
+      alert(data.message || `取消申请失败: ${response.status}`)
+    }
+
+  } catch (error) {
+    console.error('取消申请失败:', error)
+
+    if (error.message.includes('Failed to fetch')) {
+      alert('网络连接失败，请检查网络连接')
+    } else if (error.message.includes('未找到认证令牌')) {
+      alert('请先登录')
+    } else {
+      alert(`取消失败: ${error.message}`)
+    }
+  } finally {
+    cancellingApplicationId.value = null
+    console.log('取消申请操作完成')
   }
 }
 
@@ -684,15 +790,67 @@ watch(() => props.isVisible, (newVal) => {
   margin-top: 20px;
   padding-top: 12px;
   border-top: 1px solid #e2e8f0;
-  font-size: 12px;
-  color: #a0aec0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .application-id {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   letter-spacing: 0.5px;
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+/* 取消按钮样式 */
+.application-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #f56565 0%, #ed8936 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 4px rgba(237, 137, 54, 0.3);
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e53e3e 0%, #dd6b20 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(237, 137, 54, 0.4);
+}
+
+.cancel-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(237, 137, 54, 0.3);
+}
+
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+  box-shadow: none;
+}
+
+/* 取消加载动画 */
+.cancelling-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
 }
 
 /* 响应式设计 */
@@ -737,6 +895,12 @@ watch(() => props.isVisible, (newVal) => {
     right: 20px;
     top: 16px;
   }
+
+  .application-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -765,6 +929,11 @@ watch(() => props.isVisible, (newVal) => {
   .attachment-link {
     padding: 5px 8px;
     font-size: 13px;
+  }
+
+  .cancel-btn {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 }
 </style>
