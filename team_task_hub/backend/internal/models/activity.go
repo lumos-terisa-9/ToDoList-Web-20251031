@@ -29,6 +29,8 @@ type ActivityParticipation struct {
 	ActivityID uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"activity_id"`
 	UserID     uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"user_id"`
 	Status     string `gorm:"type:ENUM('pending', 'completed', 'cancelled');not null;default:'pending'" json:"status"`
+	IsUnread   bool   `gorm:"default:false;not null" json:"is_unread"`
+
 	Rating     int    `gorm:"check:rating >= 1 AND rating <= 10" json:"rating"`
 	ReviewText string `gorm:"type:text" json:"review_text"`
 

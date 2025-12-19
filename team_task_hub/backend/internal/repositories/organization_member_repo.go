@@ -174,6 +174,32 @@ func (r *OrganizationMemberRepository) UpdateRole(organizationID, userID uint, r
 	return nil
 }
 
+// FindUserInfosByOrgAndNamePrefix 根据组织ID和用户名前缀查询用户基本信息
+func (r *OrganizationMemberRepository) FindUserInfosByOrgAndNamePrefix(orgID uint, namePrefix string) ([]models.UserInfo, error) {
+	var userInfos []models.UserInfo
+
+	// 构建基础查询：关联组织成员表和用户表，并筛选指定组织的活跃成员
+	db := r.db.Model(&models.OrganizationMember{}).
+		Joins("JOIN users ON organization_members.user_id = users.id").
+		Where("organization_members.organization_id = ?", orgID)
+
+	// 如果 namePrefix 不为空，则添加模糊查询条件；如果为空，则此条件不生效，查询所有成员
+	if namePrefix != "" {
+		db = db.Where("users.username LIKE ?", namePrefix+"%")
+	}
+
+	// 执行查询
+	err := db.Select("users.id, users.username, users.avatar_url, users.email").
+		Order("users.username ASC"). // 按用户名排序
+		Scan(&userInfos).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return userInfos, nil
+}
+
 // UpdateStatus 更新成员状态
 func (r *OrganizationMemberRepository) UpdateStatus(organizationID, userID uint, status string) error {
 	result := r.db.Model(&models.OrganizationMember{}).

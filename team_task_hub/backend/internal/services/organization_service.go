@@ -676,3 +676,13 @@ func (s *OrganizationService) VerifyAndJoinOrganization(userID uint, organizatio
 	cache.DeleteUserOrganizationOverviews(userID)
 	return nil
 }
+
+// GetOrgUserInfosByNamePrefix 根据组织ID和用户名前缀获取用户基本信息
+func (s *OrganizationService) GetOrgUserInfosByNamePrefix(orgID uint, namePrefix string) ([]models.UserInfo, error) {
+	userInfos, err := s.orgMemberRepo.FindUserInfosByOrgAndNamePrefix(orgID, namePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("查询组织用户信息失败: %v", err)
+	}
+
+	return userInfos, nil
+}

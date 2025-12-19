@@ -132,3 +132,18 @@ func (r *ActivityParticipationRepository) CancelByActivityAndUser(activityID, us
 	}
 	return nil
 }
+
+// FindParticipatedUserIDs 根据活动ID和用户ID列表，查询已参与该活动的用户ID列表
+func (r *ActivityParticipationRepository) FindParticipatedUserIDs(activityID uint, userIDs []uint) ([]uint, error) {
+	var participatedUserIDs []uint
+
+	// 执行查询：选择在给定用户ID列表中且已参与指定活动的用户ID
+	err := r.db.Model(&models.ActivityParticipation{}).
+		Where("activity_id = ? AND user_id IN ?", activityID, userIDs).
+		Pluck("user_id", &participatedUserIDs).Error // 使用 Pluck 直接提取 user_id 列到切片中
+
+	if err != nil {
+		return nil, err
+	}
+	return participatedUserIDs, nil
+}

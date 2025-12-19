@@ -75,7 +75,14 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 		memberRoutes := organizationGroup.Group("")
 		memberRoutes.Use(middleware.CreateAuthChain(authService, orgService, "member")...)
 		{
+			//查看内部活动
 			memberRoutes.GET("/:orgID/activities/internal", orgHandler.GetOrgInternalActivitiesHandler)
+
+			//搜索组织成员
+			memberRoutes.GET("/:orgID/users/search", orgHandler.SearchOrganizationUsersHandler)
+
+			//获取活动参与状态
+			memberRoutes.GET("/activities/:activityID/participation-status", orgHandler.GetParticipationStatusHandler)
 		}
 
 		// 仅需JWT认证的路由（无特定组织权限要求）

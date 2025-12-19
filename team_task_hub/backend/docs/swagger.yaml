@@ -1615,6 +1615,47 @@ paths:
       summary: 转移组织所有权
       tags:
       - 组织管理
+  /api/organization/{orgID}/users/search:
+    get:
+      consumes:
+      - application/json
+      description: 根据组织ID和用户名前缀搜索匹配的组织成员基本信息列表，如果前缀为空或者没有前缀，返回组织所有成员基本信息，仅组织成员可调用
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 用户名前缀
+        in: query
+        name: name_prefix
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 搜索组织成员
+      tags:
+      - 组织管理
   /api/organization/activities/{activityID}/participants:
     get:
       consumes:

@@ -557,7 +557,7 @@ func (h *OrganizationHandler) SearchOrganizationsHandler(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID" minimum(1)
+// @Param orgID path int true "组织ID" minimum(1)
 // @Success 200 {object} SuccessResponse "获取成功" example({"success": true, "message": "获取组织成功", "data": {"id": 1, "name": "技术部"}})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "无效的组织ID"})
 // @Failure 404 {object} ErrorResponse "组织不存在"
@@ -614,7 +614,7 @@ type UpdateOrganizationNameRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body UpdateOrganizationNameRequest true "更新请求" example({"new_name": "新技术研发部"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -674,7 +674,7 @@ type UpdateOrganizationDescriptionRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body UpdateOrganizationDescriptionRequest true "更新请求" example({"new_description": "这是更新后的组织描述"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -731,7 +731,7 @@ type UpdateOrganizationLogoRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body UpdateOrganizationLogoRequest true "更新请求" example({"new_logo_url": "https://example.com/logo.png"})
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -789,7 +789,7 @@ type UpdateOrganizationLocationRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body UpdateOrganizationLocationRequest true "位置更新请求"
 // @Success 200 {object} SuccessResponse "更新成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -859,7 +859,7 @@ type TransferOrganizationOwnershipRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body TransferOrganizationOwnershipRequest true "转移请求" example({"new_creator_id": 123})
 // @Success 200 {object} SuccessResponse "转移成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -1198,7 +1198,7 @@ type CreateInviteCodeRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
-// @Param id path int true "组织ID"
+// @Param orgID path int true "组织ID"
 // @Param request body CreateInviteCodeRequest true "邀请码创建请求"
 // @Success 201 {object} SuccessResponse "创建成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
@@ -1337,6 +1337,56 @@ func (h *OrganizationHandler) JoinOrganizationWithCodeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "成功加入组织",
+	})
+}
+
+// SearchOrganizationUsersHandler 根据组织ID和用户名前缀搜索用户
+// @Summary 搜索组织成员
+// @Description 根据组织ID和用户名前缀搜索匹配的组织成员基本信息列表，如果前缀为空或者没有前缀，返回组织所有成员基本信息，仅组织成员可调用
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param name_prefix query string false "用户名前缀"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/{orgID}/users/search [get]
+func (h *OrganizationHandler) SearchOrganizationUsersHandler(c *gin.Context) {
+	// 获取并验证路径参数
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	// 获取查询参数
+	namePrefix := c.Query("name_prefix")
+
+	// 调用服务层
+	userInfos, err := h.orgService.GetOrgUserInfosByNamePrefix(uint(orgID), namePrefix)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "搜索用户失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "搜索成功",
+		"data": gin.H{
+			"users":       userInfos,
+			"total_count": len(userInfos),
+		},
 	})
 }
 
@@ -1723,5 +1773,67 @@ func (h *OrganizationHandler) ParticipateActivityHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "成功参加活动",
+	})
+}
+
+// GetParticipationStatusRequest 定义请求体结构
+type GetParticipationStatusRequest struct {
+	UserIDs []uint `json:"user_ids" binding:"required,min=1" example:"[101,102,103]"`
+}
+
+// GetParticipationStatusHandler 批量获取用户参与状态
+// @Summary 批量获取用户参与状态
+// @Description 根据活动ID和用户ID列表，返回已参与该活动的用户ID列表，用于管理员分配活动的时候后端告诉它某些人已经参与，无法重复参与
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param activityID path int true "活动ID"
+// @Param request body GetParticipationStatusRequest true "用户ID列表"
+// @Success 200 {object} SuccessResponse "查询成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "系统内部错误"
+// @Router /api/organization/activities/{activityID}/participation-status [post]
+func (h *OrganizationHandler) GetParticipationStatusHandler(c *gin.Context) {
+	// 获取并验证路径参数（活动ID）
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 绑定并验证请求体
+	var req GetParticipationStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层
+	participatedIDs, err := h.activityService.GetParticipationStatus(uint(activityID), req.UserIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询参与状态失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询成功",
+		"data": gin.H{
+			"participated_user_ids": participatedIDs,
+			"total_count":           len(participatedIDs),
+		},
 	})
 }

@@ -180,6 +180,23 @@ func (s *ActivityService) ParticipateActivity(activityID, userID uint) error {
 	return nil
 }
 
+// GetParticipationStatus 批量获取用户的参与状态
+func (s *ActivityService) GetParticipationStatus(activityID uint, userIDs []uint) ([]uint, error) {
+	var participatedIDs []uint
+	// 参数校验
+	if len(userIDs) == 0 {
+		return participatedIDs, nil // 空请求返回空切片
+	}
+
+	// 调用数据访问层，获取已参与此活动的用户ID列表
+	participatedIDs, err := s.participationRepo.FindParticipatedUserIDs(activityID, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("查询参与状态失败: %v", err)
+	}
+
+	return participatedIDs, nil
+}
+
 // GetActivityByID 根据ID获取活动详情
 func (s *ActivityService) GetActivityByID(id uint) (*models.Activity, error) {
 	activity, err := s.activityRepo.GetByID(id)
