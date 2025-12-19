@@ -11,7 +11,6 @@
       @select-location="flyToLocation"
     />
 
-    <!-- 保持不变） -->
     <div id="map" class="map"></div>
 
     <!-- 🌫️ 迷雾组件 -->
@@ -31,9 +30,58 @@
       @close="activeLocation = null"
       @open="openLocation"
     />
+
+    <!-- 组织管理浮动按钮 -->
+    <div class="organization-management">
+      <!-- 主按钮 -->
+      <button
+        class="organization-main-btn"
+        :class="{ expanded: showOrganizationOptions }"
+        @click="toggleOrganizationOptions"
+      >
+        <span class="btn-icon">{{ showOrganizationOptions ? '×' : '+' }}</span>
+      </button>
+
+      <!-- 选项菜单 -->
+      <transition name="fade-slide">
+        <div v-if="showOrganizationOptions" class="organization-options">
+          <div class="option-item create-option" @click="openCreateOrganizationModal">
+            <div class="option-icon">🏢</div>
+            <div class="option-text">创建组织</div>
+          </div>
+          <div class="option-item join-option" @click="openJoinOrganizationModal">
+            <div class="option-icon">👥</div>
+            <div class="option-text">申请加入</div>
+          </div>
+          <div class="option-item applications-option" @click="openViewApplicationsModal">
+            <div class="option-icon">📋</div>
+            <div class="option-text">查看申请</div>
+          </div>
+        </div>
+      </transition>
+    </div>
+
+    <!-- 创建组织模态框 -->
+    <CreateOrganizationModal
+      :is-visible="showCreateOrganizationModal"
+      @close="showCreateOrganizationModal = false"
+      @created="handleOrganizationCreated"
+    />
+
+    <!-- 申请加入组织模态框 -->
+    <JoinOrganizationModal
+      :is-visible="showJoinOrganizationModal"
+      @close="showJoinOrganizationModal = false"
+      @joined="handleOrganizationJoined"
+    />
+
+    <!-- 查看申请模态框 -->
+    <ViewApplicationsModal
+      :is-visible="showViewApplicationsModal"
+      @close="showViewApplicationsModal = false"
+    />
   </div>
 </template>
-
 
 <script setup>
 import axios from "axios";
@@ -44,7 +92,9 @@ import "leaflet/dist/leaflet.css";
 import MapControls from "@/components/MapControls.vue";
 import LocationDetail from "@/components/LocationDetail.vue";
 import FogLayer from "@/components/FogLayer.vue";
-
+import CreateOrganizationModal from "@/components/CreateOrganizationModal.vue";
+import JoinOrganizationModal from "@/components/JoinOrganizationModal.vue";
+import ViewApplicationsModal from "@/components/ViewApplicationsModal.vue";
 
 // 地图资源
 import mapImg from "@/assets/gameMap.jpeg";
@@ -55,6 +105,7 @@ import noxusIcon from "@/assets/mapIcon.png";
 import ioniaIcon from "@/assets/mapIcon.png";
 import piltoverIcon from "@/assets/mapIcon.png";
 
+// 暴露给父组件的方法
 defineExpose({
   isFullScreenPage: true
 })
@@ -65,6 +116,11 @@ defineExpose({
 const router = useRouter();
 const map = ref(null);
 const activeLocation = ref(null);
+const showOrganizationOptions = ref(false);
+const showCreateOrganizationModal = ref(false);
+const showJoinOrganizationModal = ref(false);
+const showViewApplicationsModal = ref(false);
+
 const apiBaseUrl = "http://localhost:8080"; // 你的后端地址
 // 建一个 axios 实例，统一配置 baseURL 和 token
 const api = axios.create({
@@ -90,17 +146,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-
-// 地图图片尺寸（请根据你的图片实际尺寸修改）
+// 地图图片尺寸
 const imgWidth = 6000;
 const imgHeight = 3374;
 
 //初始缩放尺寸
 const initialZoom = ref(null);
 
-// ----------------------------
-// 点位数据
-// ----------------------------
 // ----------------------------
 // 点位数据（只负责坐标/type，名字和加入时间从后端填）
 // ----------------------------
@@ -111,13 +163,11 @@ const locations = ref([
   { id: 4, x: 52, y: 58, icon: piltoverIcon,type: "city",    name: "", joinTime: null },
 ]);
 
-
-
 // ----------------------------
 // 辅助函数
 // ----------------------------
 
-// 从后端加载所有“可在地图展示的组织”，名字&加入时间都来自数据库
+// 从后端加载所有"可在地图展示的组织"，名字&加入时间都来自数据库
 async function loadOrgInfoFromBackend() {
   try {
     const resp = await api.get("/api/organization/my-organizations");
@@ -144,7 +194,6 @@ async function loadOrgInfoFromBackend() {
   }
 }
 
-
 function percentToPx(loc) {
   return [(loc.y / 100) * imgHeight, (loc.x / 100) * imgWidth];
 }
@@ -170,6 +219,39 @@ function getTypeName(type) {
 }
 
 // ----------------------------
+// 组织管理相关函数
+// ----------------------------
+function toggleOrganizationOptions() {
+  showOrganizationOptions.value = !showOrganizationOptions.value;
+}
+
+function openCreateOrganizationModal() {
+  showOrganizationOptions.value = false;
+  showCreateOrganizationModal.value = true;
+}
+
+function openJoinOrganizationModal() {
+  showOrganizationOptions.value = false;
+  showJoinOrganizationModal.value = true;
+}
+
+function openViewApplicationsModal() {
+  showOrganizationOptions.value = false;
+  showViewApplicationsModal.value = true;
+}
+
+function handleOrganizationCreated() {
+  showCreateOrganizationModal.value = false;
+  // 可以在这里添加创建成功后的处理逻辑
+}
+
+function handleOrganizationJoined() {
+  showJoinOrganizationModal.value = false;
+  // 可以在这里添加加入成功后的处理逻辑
+  // 如果查看申请模态框是打开的，可以刷新申请列表
+}
+
+// ----------------------------
 // 地图操作函数
 // ----------------------------
 function openLocation(loc) {
@@ -189,21 +271,16 @@ function flyToLocation(loc) {
   const [py, px] = percentToPx(loc);
   const targetLatLng = L.latLng(py, px);
 
-  // 第一次调用时记录“初始缩放等级”（一般就是 fitBounds 之后的 zoom）
   if (initialZoom.value === null) {
     initialZoom.value = map.value.getZoom();
   }
 
-  // 每次点击都从同一个 baseZoom 开始重新计算，不再沿用当前 zoom
   let zoom = initialZoom.value;
-
-  // 最大允许缩放：在初始基础上只允许略微放大，避免放大过头
   const maxZoomAllowed = Math.min(
     map.value.getMaxZoom(),
-    initialZoom.value + 0.8      // ★ 想再小可以改成 0.5
+    initialZoom.value + 0.8
   );
 
-  // 用“整张图片”的边界来判断是否会出界，而不是当前视图的 getBounds()
   const imageBounds = L.latLngBounds(
     [0, 0],
     [imgHeight, imgWidth]
@@ -221,25 +298,21 @@ function flyToLocation(loc) {
     const tlLatLng = map.value.unproject(topLeft, z);
     const brLatLng = map.value.unproject(bottomRight, z);
 
-    // 只要视图四角都还在整张图片范围内，就认为可以在这个 zoom 居中
     return imageBounds.contains(tlLatLng) && imageBounds.contains(brLatLng);
   }
 
-  // 从初始 zoom 开始，能不放大就不放大；不够的话再一点点放大
   while (zoom < maxZoomAllowed && !canCenterAt(zoom)) {
-    zoom += 0.25; // 小步放大，避免一下子 zoom 很大
+    zoom += 0.25;
   }
 
   const finalZoom = zoom;
 
-  // 使用计算好的 finalZoom，直接飞到目标点
   map.value.flyTo(targetLatLng, finalZoom, {
     duration: 0.8
   });
 
   activeLocation.value = loc;
 }
-
 
 function resetView() {
   if (!map.value) return;
@@ -272,14 +345,13 @@ function handleResize() {
 // ----------------------------
 onMounted(async () => {
   await loadOrgInfoFromBackend();
+
   try {
-    // 原始边界
     const bounds = [
       [0, 0],
       [imgHeight, imgWidth]
     ];
 
-    // 扩展边界，避免缩放时露出黑边
     const paddedBounds = L.latLngBounds(
       [-50, -50],
       [imgHeight + 50, imgWidth + 50]
@@ -298,7 +370,6 @@ onMounted(async () => {
       maxBoundsViscosity: 1.0
     });
 
-    // 图层
     const imageLayer = L.imageOverlay(mapImg, bounds, {
       className: 'map-image-layer'
     }).addTo(map.value);
@@ -307,7 +378,6 @@ onMounted(async () => {
 
     map.value.fitBounds(bounds);
 
-    // 你的 marker 逻辑保持不变
     locations.value.forEach((loc) => {
       const [py, px] = percentToPx(loc);
       const icon = L.divIcon({
@@ -345,7 +415,6 @@ onMounted(async () => {
   }
 });
 
-
 // 清理资源
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
@@ -359,6 +428,162 @@ onUnmounted(() => {
 });
 </script>
 
+<!-- 添加组织管理相关样式 -->
+<style>
+/* 组织管理浮动按钮 */
+.organization-management {
+  position: absolute;
+  bottom: 100px;
+  right: 30px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.organization-main-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1001;
+}
+
+.organization-main-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+}
+
+.organization-main-btn.expanded {
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.organization-main-btn .btn-icon {
+  font-weight: 300;
+  transition: transform 0.3s ease;
+}
+
+/* 选项菜单 */
+.organization-options {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.option-item:hover {
+  transform: translateX(-4px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.option-item.create-option:hover {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.option-item.join-option:hover {
+  background: rgba(66, 153, 225, 0.3);
+}
+
+.option-item.applications-option:hover {
+  background: rgba(245, 158, 11, 0.3); /* 橙色系 */
+}
+
+.option-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.option-text {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 动画效果 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .organization-management {
+    bottom: 80px;
+    right: 20px;
+  }
+
+  .organization-main-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .organization-options {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .organization-management {
+    bottom: 70px;
+    right: 16px;
+  }
+
+  .organization-main-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+}
+</style>
+
+<!-- 原有的样式保持不变 -->
 <style>
 /* 重置样式确保全屏 */
 * {
@@ -398,13 +623,13 @@ onUnmounted(() => {
 /* 紧凑的地图控制面板 - 调整位置避免被HeaderBar遮挡 */
 .map-controls {
   position: absolute;
-  top: 70px; /* HeaderBar高度约48px + 额外间距 */
+  top: 70px;
   left: 16px;
   z-index: 1000;
   padding: 12px;
   min-width: 160px;
   max-width: 200px;
-  max-height: calc(100vh - 90px); /* 限制高度，避免超出屏幕 */
+  max-height: calc(100vh - 90px);
   overflow-y: auto;
 }
 
@@ -506,7 +731,7 @@ onUnmounted(() => {
 /* 紧凑的详情面板 - 同样调整位置 */
 .location-detail {
   position: absolute;
-  top: 70px; /* HeaderBar高度约48px + 额外间距 */
+  top: 70px;
   right: 16px;
   z-index: 1000;
   padding: 12px;
@@ -581,14 +806,14 @@ onUnmounted(() => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .map-controls {
-    top: 60px; /* 移动端也相应调整 */
+    top: 60px;
     min-width: 140px;
     max-width: 160px;
     padding: 8px;
   }
 
   .location-detail {
-    top: 60px; /* 移动端也相应调整 */
+    top: 60px;
     min-width: 160px;
     max-width: 200px;
   }
@@ -601,22 +826,20 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .map-controls {
-    top: 55px; /* 更小的屏幕进一步调整 */
+    top: 55px;
     left: 8px;
     min-width: 120px;
     max-width: 140px;
   }
 
   .location-detail {
-    top: 55px; /* 更小的屏幕进一步调整 */
+    top: 55px;
     right: 8px;
     min-width: 140px;
     max-width: 180px;
   }
 }
-</style>
 
-<style>
 /* Leaflet 标记样式优化 */
 .custom-div-icon {
   background: none !important;
@@ -650,27 +873,23 @@ onUnmounted(() => {
 
 .marker-label {
   position: absolute;
-  top: 38px;                /* 想显示在下方就用正数；上方用 -24px 左右 */
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
-
-  opacity: 1;               /* ✅ 默认显示 */
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transition: opacity 0.3s ease;
   pointer-events: none;
   backdrop-filter: blur(4px);
-  z-index: 9999;
 }
 
-/* 悬浮时稍微“跳一下”更有反馈 */
 .custom-marker:hover .marker-label {
   opacity: 1;
-  transform: translateX(-50%) translateY(-2px);
 }
 
 .marker-hover .marker-pin {
