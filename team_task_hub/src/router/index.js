@@ -18,6 +18,17 @@ const router = createRouter({
       path: '/orgmap',
       name: 'orgmap',
       component: () => import('@/views/MapPage.vue')
+    },
+    {
+      path: '/org/:id',
+      name: 'OrgPage', // 你 MapPage 里之前用 name:"Org" 就能匹配
+      component: () => import('@/views/OrgPage.vue'),
+      props: true,
+    },
+    {
+      path: '/org/:id/info',
+      name: 'OrgInfo',
+      component: () => import('@/views/OrgInfoPage.vue'),
     }
   ],
 })
