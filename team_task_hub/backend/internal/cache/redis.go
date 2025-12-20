@@ -55,6 +55,19 @@ func setString(key, value string, expiration time.Duration) error {
 	return Client.Set(ctx, key, value, expiration).Err()
 }
 
+// RenewKey 为指定的缓存键续期
+// key: 缓存键
+// expiration: 新的过期时间
+func RenewKey(key string, expiration time.Duration) error {
+	// 使用 EXPIRE 命令重置键的生存时间
+	err := Client.Expire(ctx, key, expiration).Err()
+	if err != nil {
+		log.Printf("缓存键续期失败: key=%s, error=%v", key, err)
+		return err
+	}
+	return nil
+}
+
 func exists(key string) (bool, error) {
 	result, err := Client.Exists(ctx, key).Result()
 	if err != nil {

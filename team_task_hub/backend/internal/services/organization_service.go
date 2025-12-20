@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"strings"
 	"team_task_hub/backend/internal/cache"
 	"team_task_hub/backend/internal/models"
@@ -357,26 +358,85 @@ func (s *OrganizationService) RemoveOrganizationMember(orgID, userID uint, remov
 
 	s.invalidateUserOrganizationCache(userID)
 
+	go cache.InvalidateUserOrganizationCache(orgID, userID)
 	return nil
 }
 
-// IsOrganizationCreator 验证用户是否是组织创建者
+// 缓存过期时间配置
+const (
+	CreatorCacheExpiration = 24 * 60 * time.Minute // 创建者信息变更较少
+	AdminCacheExpiration   = 2 * 60 * time.Minute  // 管理员角色可能变更
+	MemberCacheExpiration  = 30 * time.Minute      // 成员关系变更相对频繁
+
+	//设置随机扰动
+	CreatorCacheRange = 60 * time.Minute
+	AdminCacheRange   = 30 * time.Minute
+	MemberCacheRange  = 10 * time.Minute
+)
+
+// GenerateRandomizedExpiration 生成带随机扰动的时间间隔
+// 返回的过期时间将在 [baseDuration, baseDuration + randomRange) 范围内
+func GenerateRandomizedExpiration(baseDuration, randomRange time.Duration) time.Duration {
+	if randomRange <= 0 {
+		return baseDuration
+	}
+
+	// 生成一个在 [0, randomRange) 范围内的随机时间扰动
+	randomNanoseconds := rand.Int63n(int64(randomRange))
+	randomDisturbance := time.Duration(randomNanoseconds)
+
+	// 组合基础时间和随机扰动
+	return baseDuration + randomDisturbance
+}
+
+// IsOrganizationCreator 验证用户是否是组织创建者（带缓存优化）
 func (s *OrganizationService) IsOrganizationCreator(orgID, userID uint) (bool, error) {
+	// 先尝试从缓存获取创建者ID
+	cachedCreatorID, err := cache.GetOrganizationCreator(orgID)
+	if err == nil {
+		// 缓存命中，直接比较并返回
+		//缓存正确，续期
+		if cachedCreatorID == userID {
+			go cache.RenewKey(cache.OrganizationCreatorKey(orgID), GenerateRandomizedExpiration(CreatorCacheExpiration, CreatorCacheRange))
+		}
+		return cachedCreatorID == userID, nil
+	}
+
+	// 缓存未命中（可能是键不存在或网络错误），查询数据库
 	org, err := s.orgRepo.GetByID(orgID)
 	if err != nil {
 		return false, fmt.Errorf("查询组织失败: %v", err)
 	}
-	return org.CreatorID == userID, nil
+
+	isCreator := org.CreatorID == userID
+
+	// 异步将结果写入缓存（无论是否是创建者都缓存）
+	go cache.SetOrganizationCreator(orgID, org.CreatorID, GenerateRandomizedExpiration(CreatorCacheExpiration, CreatorCacheRange))
+
+	return isCreator, nil
 }
 
-// IsOrganizationAdmin 验证用户是否是组织管理员或创建者
+// IsOrganizationAdmin 验证用户是否是组织管理员或创建者（带缓存优化）
 func (s *OrganizationService) IsOrganizationAdmin(orgID, userID uint) (bool, error) {
-	// 检查是否是创建者
+	// 先尝试从缓存获取管理员状态
+	isAdmin, err := cache.GetOrganizationAdmin(orgID, userID)
+	if err == nil {
+		// 缓存命中，直接返回
+		if isAdmin {
+			go cache.RenewKey(cache.OrganizationAdminKey(orgID, userID), GenerateRandomizedExpiration(AdminCacheExpiration, AdminCacheRange))
+		}
+		return isAdmin, nil
+	}
+
+	// 缓存未命中，执行完整的权限验证逻辑
+	// 先检查是否是创建者（会使用缓存）
 	isCreator, err := s.IsOrganizationCreator(orgID, userID)
 	if err != nil {
 		return false, err
 	}
 	if isCreator {
+		// 是创建者，自动是管理员，异步缓存这个结果
+		go cache.SetOrganizationAdmin(orgID, userID, true, GenerateRandomizedExpiration(CreatorCacheExpiration, CreatorCacheRange))
 		return true, nil
 	}
 
@@ -384,20 +444,42 @@ func (s *OrganizationService) IsOrganizationAdmin(orgID, userID uint) (bool, err
 	member, err := s.orgMemberRepo.GetMember(orgID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 用户不是成员，缓存"非管理员"状态
+			go cache.SetOrganizationAdmin(orgID, userID, false, GenerateRandomizedExpiration(AdminCacheExpiration, AdminCacheRange))
 			return false, nil
 		}
 		return false, fmt.Errorf("查询成员关系失败: %v", err)
 	}
 
-	return member.Role == "admin", nil
+	isAdmin = member.Role == "admin"
+
+	// 异步缓存管理员状态
+	go cache.SetOrganizationAdmin(orgID, userID, isAdmin, GenerateRandomizedExpiration(AdminCacheExpiration, AdminCacheRange))
+
+	return isAdmin, nil
 }
 
-// IsOrganizationMember 验证用户是否是组织成员
+// IsOrganizationMember 验证用户是否是组织成员（带缓存优化）
 func (s *OrganizationService) IsOrganizationMember(orgID, userID uint) (bool, error) {
+	// 先尝试从缓存获取成员状态
+	isMember, err := cache.GetOrganizationMember(orgID, userID)
+	if err == nil {
+		// 缓存命中，直接返回
+		if isMember {
+			go cache.RenewKey(cache.OrganizationMemberKey(orgID, userID), GenerateRandomizedExpiration(MemberCacheExpiration, MemberCacheRange))
+		}
+		return isMember, nil
+	}
+
+	// 缓存未命中，查询数据库
 	exists, err := s.orgMemberRepo.Exists(orgID, userID)
 	if err != nil {
 		return false, fmt.Errorf("检查成员关系失败: %v", err)
 	}
+
+	// 异步缓存成员状态（包括"非成员"状态，防止缓存穿透）
+	go cache.SetOrganizationMember(orgID, userID, exists, GenerateRandomizedExpiration(MemberCacheExpiration, MemberCacheRange))
+
 	return exists, nil
 }
 
@@ -557,6 +639,8 @@ func (s *OrganizationService) TransferOrganizationOwnership(orgID uint, newCreat
 	// 清理缓存
 	go cache.DeleteOrganizationInfo(orgID)
 
+	go cache.DeleteOrganizationCreator(orgID)
+
 	return nil
 }
 
@@ -575,6 +659,7 @@ func (s *OrganizationService) CancelAdmin(orgID, userID uint) error {
 	if err != nil {
 		return fmt.Errorf("取消管理员失败，原因：%v", err)
 	}
+	go cache.DeleteOrganizationAdmin(orgID, userID)
 	return nil
 }
 
