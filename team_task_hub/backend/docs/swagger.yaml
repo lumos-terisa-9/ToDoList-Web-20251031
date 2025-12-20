@@ -93,6 +93,20 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.CompleteActivitiesRequest:
+    properties:
+      user_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - user_ids
+    type: object
   handlers.CompleteTodoRequest:
     properties:
       description:
@@ -165,6 +179,20 @@ definitions:
         type: string
       success:
         type: boolean
+    type: object
+  handlers.GetCompletedUserIDsRequest:
+    properties:
+      user_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - user_ids
     type: object
   handlers.GetParticipationStatusRequest:
     properties:
@@ -721,48 +749,6 @@ paths:
       summary: 测试SMTP连接
       tags:
       - 系统管理
-  /api/application/change-organization:
-    post:
-      consumes:
-      - application/json
-      description: 用户提交组织信息变更申请，需要管理员审批
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 变更申请请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.SubmitChangeOrgAppRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: 申请提交成功
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: 用户未认证
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: 系统内部错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 提交组织变更申请
-      tags:
-      - 组织申请
   /api/auth/change_avatar:
     put:
       consumes:
@@ -1284,6 +1270,144 @@ paths:
       summary: 取消组织活动
       tags:
       - 活动管理
+  /api/organization/{orgID}/activities/{activityID}/complete:
+    patch:
+      consumes:
+      - application/json
+      description: 将指定活动标记为已完成状态
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 要操作的活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记活动为已完成
+      tags:
+      - 活动管理
+  /api/organization/{orgID}/activities/{activityID}/complete-user:
+    patch:
+      consumes:
+      - application/json
+      description: 将指定活动（通过URL路径）和用户数组（通过请求体）的参与状态更新为"已完成"
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 要操作的活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      - description: 需要标记为完成的用户ID列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CompleteActivitiesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量完成活动
+      tags:
+      - 活动管理
+  /api/organization/{orgID}/activities/{activityID}/participation-status:
+    post:
+      consumes:
+      - application/json
+      description: 根据活动ID和用户ID列表，返回已参与该活动的用户ID列表，用于管理员分配活动的时候后端告诉它某些人已经参与，无法重复参与
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GetParticipationStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量获取用户参与状态
+      tags:
+      - 活动管理
   /api/organization/{orgID}/activities/assigned:
     get:
       consumes:
@@ -1323,6 +1447,49 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取组织的指派活动列表
+      tags:
+      - 活动管理
+  /api/organization/{orgID}/activities/batch-assign:
+    post:
+      consumes:
+      - application/json
+      description: 组织管理员将指定活动强制分配给一批用户（用户均未参与），并标记为“未读”状态
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 分配请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BatchAssignActivityRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 批量分配活动
       tags:
       - 活动管理
   /api/organization/{orgID}/activities/internal:
@@ -1502,6 +1669,53 @@ paths:
       summary: 提拔组织成员为管理员
       tags:
       - 组织管理
+  /api/organization/{orgID}/application/change-organization:
+    post:
+      consumes:
+      - application/json
+      description: 用户提交组织信息变更申请，需要管理员审批
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 变更申请请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SubmitChangeOrgAppRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 申请提交成功
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 系统内部错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 提交组织变更申请
+      tags:
+      - 组织申请
   /api/organization/{orgID}/invite-codes:
     post:
       consumes:
@@ -1647,6 +1861,53 @@ paths:
       summary: 转移组织所有权
       tags:
       - 组织管理
+  /api/organization/{orgID}/remove-member:
+    delete:
+      consumes:
+      - application/json
+      description: 组织管理员或创建者从组织中移除成员
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 移除请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RemoveOrganizationMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '移除成功" example({"success": true, "message": "成员移除成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: '请求参数错误" example({"success": false, "message": "成员关系不存在"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "移除成员失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 移除组织成员
+      tags:
+      - 组织管理
   /api/organization/{orgID}/users/search:
     get:
       consumes:
@@ -1688,6 +1949,49 @@ paths:
       summary: 搜索组织成员
       tags:
       - 组织管理
+  /api/organization/activities/{activityID}/completed-users:
+    post:
+      consumes:
+      - application/json
+      description: 根据活动ID和用户ID列表，返回其中已完成该活动的用户ID数组
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      - description: 用户ID列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GetCompletedUserIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取已完成活动的用户ID
+      tags:
+      - 活动管理
   /api/organization/activities/{activityID}/participants:
     get:
       consumes:
@@ -1776,87 +2080,6 @@ paths:
       summary: 用户参加活动/领取活动
       tags:
       - 活动参与
-  /api/organization/activities/{activityID}/participation-status:
-    post:
-      consumes:
-      - application/json
-      description: 根据活动ID和用户ID列表，返回已参与该活动的用户ID列表，用于管理员分配活动的时候后端告诉它某些人已经参与，无法重复参与
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 活动ID
-        in: path
-        name: activityID
-        required: true
-        type: integer
-      - description: 用户ID列表
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.GetParticipationStatusRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 查询成功
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: 系统内部错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 批量获取用户参与状态
-      tags:
-      - 活动管理
-  /api/organization/activities/batch-assign:
-    post:
-      consumes:
-      - application/json
-      description: 组织管理员将指定活动强制分配给一批用户（用户均未参与），并标记为“未读”状态
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 分配请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.BatchAssignActivityRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: 分配成功
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: 系统内部错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 批量分配活动
-      tags:
-      - 活动管理
   /api/organization/application/{id}:
     delete:
       consumes:
@@ -2295,48 +2518,6 @@ paths:
       summary: 查询附近组织
       tags:
       - 组织查询
-  /api/organization/remove-member:
-    delete:
-      consumes:
-      - application/json
-      description: 组织管理员或创建者从组织中移除成员
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 移除请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.RemoveOrganizationMemberRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '移除成功" example({"success": true, "message": "成员移除成功"})'
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: '请求参数错误" example({"success": false, "message": "成员关系不存在"})'
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: 用户未认证
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: '系统内部错误" example({"success": false, "message": "移除成员失败"})'
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 移除组织成员
-      tags:
-      - 组织管理
   /api/organization/search:
     get:
       consumes:
@@ -2379,6 +2560,52 @@ paths:
       summary: 搜索组织
       tags:
       - 组织查询
+  /api/orgnization/{orgID}/application/pending-join:
+    get:
+      consumes:
+      - application/json
+      description: 组织管理员获取该组织的待处理加入申请
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 组织名称
+        in: query
+        name: orgName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '获取成功" example({"success": true, "message": "获取加入申请成功"})'
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: 用户未认证
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: '系统内部错误" example({"success": false, "message": "获取申请失败"})'
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取组织的待处理加入申请
+      tags:
+      - 组织申请
   /api/orgnization/application/my-applications:
     get:
       consumes:
@@ -2409,47 +2636,6 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取用户的申请列表
-      tags:
-      - 组织申请
-  /api/orgnization/application/pending-join:
-    get:
-      consumes:
-      - application/json
-      description: 组织管理员获取该组织的待处理加入申请
-      parameters:
-      - default: Bearer
-        description: Bearer Token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: 组织名称
-        in: query
-        name: orgName
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '获取成功" example({"success": true, "message": "获取加入申请成功"})'
-          schema:
-            $ref: '#/definitions/handlers.SuccessResponse'
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "401":
-          description: 用户未认证
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: '系统内部错误" example({"success": false, "message": "获取申请失败"})'
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 获取组织的待处理加入申请
       tags:
       - 组织申请
   /api/todos/Get-OneDayTodos:

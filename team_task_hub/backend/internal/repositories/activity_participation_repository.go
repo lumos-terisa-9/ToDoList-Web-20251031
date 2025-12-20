@@ -192,3 +192,32 @@ func (r *ActivityParticipationRepository) DeleteCancelledActivity(userID, activi
 
 	return nil
 }
+
+// FindCompletedUserIDsByActivity 根据活动ID和用户ID列表，查询已完成该活动的用户ID数组
+func (r *ActivityParticipationRepository) FindCompletedUserIDsByActivity(activityID uint, userIDs []uint) ([]uint, error) {
+	var completedUserIDs []uint
+
+	// 构建查询：筛选指定活动、指定用户列表内、且状态为'completed'的记录
+	// 使用 Pluck 方法直接提取 user_id 列到切片中，避免查询不必要的数据
+	err := r.db.Model(&models.ActivityParticipation{}).
+		Where("activity_id = ?", activityID).
+		Where("user_id IN ?", userIDs).
+		Where("status = ?", "completed").
+		Pluck("user_id", &completedUserIDs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return completedUserIDs, nil
+}
+
+// UpdateParticipationStatusToCompleted 将指定活动和用户的活动参与状态更新为“已完成”
+func (r *ActivityParticipationRepository) UpdateParticipationStatusToCompleted(activityID uint, userIDs []uint) error {
+	// 直接构建批量更新操作
+	result := r.db.Model(&models.ActivityParticipation{}).
+		Where("activity_id = ? AND user_id IN ?", activityID, userIDs).
+		Update("status", "completed")
+
+	return result.Error
+}

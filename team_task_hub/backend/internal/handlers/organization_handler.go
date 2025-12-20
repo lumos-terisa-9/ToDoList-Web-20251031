@@ -340,12 +340,13 @@ func (h *OrganizationHandler) GetPendingApplicationsHandler(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
 // @Param orgName query string true "组织名称"
 // @Success 200 {object} SuccessResponse "获取成功" example({"success": true, "message": "获取加入申请成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "获取申请失败"})
-// @Router /api/orgnization/application/pending-join [get]
+// @Router /api/orgnization/{orgID}/application/pending-join [get]
 func (h *OrganizationHandler) GetOrgPendingJoinApplicationsHandler(c *gin.Context) {
 	orgName := c.Query("orgName")
 	if orgName == "" {
@@ -463,12 +464,13 @@ type RemoveOrganizationMemberRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
 // @Param request body RemoveOrganizationMemberRequest true "移除请求" example({"org_id": 1, "user_id": 2})
 // @Success 200 {object} SuccessResponse "移除成功" example({"success": true, "message": "成员移除成功"})
 // @Failure 400 {object} ErrorResponse "请求参数错误" example({"success": false, "message": "成员关系不存在"})
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误" example({"success": false, "message": "移除成员失败"})
-// @Router /api/organization/remove-member [delete]
+// @Router /api/organization/{orgID}/remove-member [delete]
 func (h *OrganizationHandler) RemoveOrganizationMemberHandler(c *gin.Context) {
 	var request struct {
 		OrgID  uint `json:"org_id" binding:"required"`
@@ -943,12 +945,13 @@ type SubmitChangeOrgAppRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
 // @Param request body SubmitChangeOrgAppRequest true "变更申请请求"
 // @Success 201 {object} SuccessResponse "申请提交成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 401 {object} ErrorResponse "用户未认证"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/application/change-organization [post]
+// @Router /api/organization/{orgID}/application/change-organization [post]
 func (h *OrganizationHandler) SubmitChangeOrganizationApplicationHandler(c *gin.Context) {
 	// 绑定和验证请求数据
 	var request SubmitChangeOrgAppRequest
@@ -1789,12 +1792,13 @@ type GetParticipationStatusRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
 // @Param activityID path int true "活动ID"
 // @Param request body GetParticipationStatusRequest true "用户ID列表"
 // @Success 200 {object} SuccessResponse "查询成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/activities/{activityID}/participation-status [post]
+// @Router /api/organization/{orgID}/activities/{activityID}/participation-status [post]
 func (h *OrganizationHandler) GetParticipationStatusHandler(c *gin.Context) {
 	// 获取并验证路径参数（活动ID）
 	activityIDStr := c.Param("activityID")
@@ -1852,11 +1856,12 @@ type BatchAssignActivityRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
 // @Param request body BatchAssignActivityRequest true "分配请求"
 // @Success 201 {object} SuccessResponse "分配成功"
 // @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 500 {object} ErrorResponse "系统内部错误"
-// @Router /api/organization/activities/batch-assign [post]
+// @Router /api/organization/{orgID}/activities/batch-assign [post]
 func (h *OrganizationHandler) BatchAssignActivityHandler(c *gin.Context) {
 	var req BatchAssignActivityRequest
 
@@ -2052,5 +2057,169 @@ func (h *OrganizationHandler) DeleteCancelledActivityHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "已取消的活动记录删除成功",
+	})
+}
+
+// GetCompletedUserIDsRequest 获取已完成活动用户ID的请求体
+type GetCompletedUserIDsRequest struct {
+	UserIDs []uint `json:"user_ids" binding:"required,min=1" example:"1,2,3"`
+}
+
+// GetCompletedUserIDsHandler 获取已完成活动的用户ID数组
+// @Summary 获取已完成活动的用户ID
+// @Description 根据活动ID和用户ID列表，返回其中已完成该活动的用户ID数组
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param activityID path int true "活动ID"
+// @Param request body GetCompletedUserIDsRequest true "用户ID列表"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/activities/{activityID}/completed-users [post]
+func (h *OrganizationHandler) GetCompletedUserIDsHandler(c *gin.Context) {
+	// 获取并验证路径参数（活动ID）
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 绑定并验证请求体
+	var req GetCompletedUserIDsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层
+	completedUserIDs, err := h.activityService.GetCompletedUserIDs(uint(activityID), req.UserIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询已完成用户失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询已完成用户成功",
+		"data": gin.H{
+			"completed_user_ids": completedUserIDs,
+			"total_count":        len(completedUserIDs),
+		},
+	})
+}
+
+// CompleteActivitiesRequest 完成活动请求体
+type CompleteActivitiesRequest struct {
+	UserIDs []uint `json:"user_ids" binding:"required,min=1" example:"1,2,3"`
+}
+
+// CompleteActivitiesForUsersHandler 批量设置用户活动为已完成
+// @Summary 批量完成活动
+// @Description 将指定活动（通过URL路径）和用户数组（通过请求体）的参与状态更新为"已完成"
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "要操作的活动ID"
+// @Param request body CompleteActivitiesRequest true "需要标记为完成的用户ID列表"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/{orgID}/activities/{activityID}/complete-user [patch]
+func (h *OrganizationHandler) CompleteActivitiesForUsersHandler(c *gin.Context) {
+	// 从URL路径中获取并验证活动ID
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 绑定并验证请求体（包含用户ID列表）
+	var req CompleteActivitiesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.CompleteActivitiesForUsers(uint(activityID), req.UserIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "完成活动操作失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "活动参与状态已成功更新为已完成",
+	})
+}
+
+// CompleteActivityHandler 将活动标记为已完成
+// @Summary 标记活动为已完成
+// @Description 将指定活动标记为已完成状态
+// @Tags 活动管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param activityID path int true "要操作的活动ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/{orgID}/activities/{activityID}/complete [patch]
+func (h *OrganizationHandler) CompleteActivityHandler(c *gin.Context) {
+	// 从URL路径中获取并验证活动ID
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 调用服务层
+	err = h.activityService.CompleteActivity(uint(activityID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "标记活动为已完成失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "活动已成功标记为已完成",
 	})
 }

@@ -247,6 +247,49 @@ func (s *ActivityService) GetParticipationStatus(activityID uint, userIDs []uint
 	return participatedIDs, nil
 }
 
+// GetCompletedUserIDs 获取已经完成活动的用户id
+func (s *ActivityService) GetCompletedUserIDs(activityID uint, userIDs []uint) ([]uint, error) {
+	var completedUserIDs []uint
+	//id数组不能为空
+	if len(userIDs) == 0 {
+		return completedUserIDs, fmt.Errorf("传入id数组不能为空")
+	}
+
+	//查询
+	completedUserIDs, err := s.participationRepo.FindCompletedUserIDsByActivity(activityID, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("查询活动已经完成的用户失败，原因：%v", err)
+	}
+
+	return completedUserIDs, nil
+}
+
+// CompleteActivitiesForUsers 设置用户活动为已完成
+func (s *ActivityService) CompleteActivitiesForUsers(activityID uint, userIDs []uint) error {
+	err := s.participationRepo.UpdateParticipationStatusToCompleted(activityID, userIDs)
+	if err != nil {
+		return fmt.Errorf("将用户活动设置成已完成失败，原因：%v", err)
+	}
+
+	return nil
+}
+
+// CompleteActivity 将活动设置成已完成
+func (s *ActivityService) CompleteActivity(activityID uint) error {
+	//设置更新数据
+	updateData := map[string]any{
+		"status": "completed",
+	}
+
+	//调用数据访问层
+	err := s.activityRepo.UpdateStatus(activityID, updateData)
+	if err != nil {
+		return fmt.Errorf("标记活动为已完成失败，原因：%v", err)
+	}
+
+	return nil
+}
+
 // GetActivityByID 根据ID获取活动详情
 func (s *ActivityService) GetActivityByID(id uint) (*models.Activity, error) {
 	activity, err := s.activityRepo.GetByID(id)
@@ -263,42 +306,6 @@ func (s *ActivityService) GetActivitiesByOrganization(orgID uint) ([]models.Acti
 		return nil, fmt.Errorf("获取组织活动列表失败: %v", err)
 	}
 	return activities, nil
-}
-
-// JoinActivity 用户参与活动
-func (s *ActivityService) JoinActivity(activityID, userID uint) error {
-	// 检查活动是否存在
-	activity, err := s.activityRepo.GetByID(activityID)
-	if err != nil {
-		return fmt.Errorf("活动不存在: %v", err)
-	}
-
-	// 检查活动是否已开始
-	if activity.StartTime.Before(time.Now()) {
-		return fmt.Errorf("活动已开始，无法参与")
-	}
-
-	// 检查用户是否已参与该活动
-	exists, err := s.participationRepo.Exists(activityID, userID)
-	if err != nil {
-		return fmt.Errorf("检查参与状态失败: %v", err)
-	}
-	if exists {
-		return fmt.Errorf("您已参与此活动")
-	}
-
-	// 创建参与记录
-	participation := &models.ActivityParticipation{
-		ActivityID: activityID,
-		UserID:     userID,
-	}
-
-	err = s.participationRepo.Create(participation)
-	if err != nil {
-		return fmt.Errorf("参与活动失败: %v", err)
-	}
-
-	return nil
 }
 
 // SubmitReview 提交活动评价

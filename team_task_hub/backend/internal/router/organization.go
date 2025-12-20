@@ -50,15 +50,16 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			creatorRoutes.DELETE("/:orgID/admin/:userID", orgHandler.CancelAdminHandler)
 			//转移组织所有权
 			creatorRoutes.PATCH("/ownership/:orgID", orgHandler.TransferOrganizationOwnershipHandler)
+
 		}
 
 		// 需要组织管理员权限的路由
 		adminRoutes := organizationGroup.Group("")
 		adminRoutes.Use(middleware.CreateAuthChain(authService, orgService, "admin")...)
 		{
-			adminRoutes.GET("/application/pending-join", orgHandler.GetOrgPendingJoinApplicationsHandler)
-			adminRoutes.DELETE("/remove-member", orgHandler.RemoveOrganizationMemberHandler)
-			adminRoutes.POST("/change-organization", orgHandler.SubmitChangeOrganizationApplicationHandler)
+			adminRoutes.GET("/:orgID/application/pending-join", orgHandler.GetOrgPendingJoinApplicationsHandler)
+			adminRoutes.DELETE("/:orgID/remove-member", orgHandler.RemoveOrganizationMemberHandler)
+			adminRoutes.POST("/:orgID/change-organization", orgHandler.SubmitChangeOrganizationApplicationHandler)
 
 			//组织定位以及邀请码
 			adminRoutes.PUT("/:orgID/location", orgHandler.UpdateOrganizationLocationHandler)
@@ -69,7 +70,9 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			adminRoutes.PATCH("/:orgID/activities/:activityID/cancel", orgHandler.CancelActivityHandler)
 			adminRoutes.PATCH("/:orgID/activities/:activityID", orgHandler.UpdateActivityHandler)
 			adminRoutes.GET("/:orgID/activities/assigned", orgHandler.GetOrgAssignedActivitiesHandler)
-			adminRoutes.POST("/activities/batch-assign", orgHandler.BatchAssignActivityHandler)
+			adminRoutes.POST("/:orgID/activities/batch-assign", orgHandler.BatchAssignActivityHandler)
+			adminRoutes.PATCH("/:orgID/activities/:activityID/complete-user", orgHandler.CompleteActivitiesForUsersHandler)
+			adminRoutes.PATCH("/:orgID/activities/:activityID/complete-activity", orgHandler.CompleteActivityHandler)
 		}
 
 		// 需要组织成员权限的路由
@@ -83,7 +86,8 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			memberRoutes.GET("/:orgID/users/search", orgHandler.SearchOrganizationUsersHandler)
 
 			//获取活动参与状态
-			memberRoutes.GET("/activities/:activityID/participation-status", orgHandler.GetParticipationStatusHandler)
+			memberRoutes.GET("/:orgID/activities/:activityID/participation-status", orgHandler.GetParticipationStatusHandler)
+
 		}
 
 		// 仅需JWT认证的路由（无特定组织权限要求）
@@ -130,6 +134,9 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			//已经取消的活动
 			baseAuthRoutes.GET("/me/activities/cancelled", orgHandler.GetCancelledActivitiesHandler)
 			baseAuthRoutes.DELETE("/me/activities/cancelled/:activityID", orgHandler.DeleteCancelledActivityHandler)
+
+			//查看组织活动完成情况
+			memberRoutes.GET("/activities/:activityID/completed-users", orgHandler.GetCompletedUserIDsHandler)
 		}
 	}
 }
