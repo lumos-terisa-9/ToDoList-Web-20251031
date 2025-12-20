@@ -157,10 +157,10 @@ const initialZoom = ref(null);
 // 点位数据（只负责坐标/type，名字和加入时间从后端填）
 // ----------------------------
 const locations = ref([
-  { id: 1, x: 22, y: 48, icon: demaciaIcon, type: "kingdom", name: "", joinTime: null },
-  { id: 2, x: 45, y: 34, icon: noxusIcon,   type: "empire",  name: "", joinTime: null },
-  { id: 3, x: 78, y: 26, icon: ioniaIcon,   type: "region",  name: "", joinTime: null },
-  { id: 4, x: 52, y: 58, icon: piltoverIcon,type: "city",    name: "", joinTime: null },
+  { id: 1, x: 22, y: 48, icon: demaciaIcon, type: "kingdom", name: "", joinTime: null, hasOrg: false, orgId: null },
+  { id: 2, x: 45, y: 34, icon: noxusIcon,   type: "empire",  name: "", joinTime: null, hasOrg: false, orgId: null },
+  { id: 3, x: 78, y: 26, icon: ioniaIcon,   type: "region",  name: "", joinTime: null, hasOrg: false, orgId: null },
+  { id: 4, x: 52, y: 58, icon: piltoverIcon,type: "city",    name: "", joinTime: null, hasOrg: false, orgId: null },
 ]);
 
 // ----------------------------
@@ -171,24 +171,42 @@ const locations = ref([
 async function loadOrgInfoFromBackend() {
   try {
     const resp = await api.get("/api/organization/my-organizations");
-    const orgList = resp.data?.data;
+
+    // ✅ 兼容后端不同返回结构（很关键）
+    const orgList =
+      resp.data?.data?.organizations ??
+      resp.data?.data ??
+      resp.data?.organizations ??
+      [];
+
+    console.log("my-organizations raw resp:", resp.data);
+    console.log("parsed orgList:", orgList);
 
     if (!Array.isArray(orgList)) return;
 
     locations.value = locations.value.map((loc, idx) => {
-      const org = orgList[idx]; // 按顺序塞进点位
-      if (!org) return loc;
+      const org = orgList[idx];
+      if (!org) {
+        return { ...loc, hasOrg: false, orgId: null, name: "", joinTime: null };
+      }
+
+      const orgId =
+        org.id ?? org.org_id ?? org.organization_id ?? org.organizationId ?? null;
 
       return {
         ...loc,
-        name: org.org_name || loc.name,
-        joinTime: org.joined_at || null,
+        // ✅ 有 org 数据就算有组织（不要因为 orgId 取不到就判无组织）
+        hasOrg: true,
+        orgId: orgId,
+
+        name: org.org_name || org.name || loc.name,
+        joinTime: org.joined_at || org.joinTime || null,
         logoUrl: org.logo_url || null,
         creatorId: org.creator_id ?? null,
       };
     });
 
-    console.log("加载后的地标：", locations.value);
+    console.log("loaded locations:", locations.value);
   } catch (err) {
     console.error("加载组织信息失败：", err);
   }
@@ -255,11 +273,19 @@ function handleOrganizationJoined() {
 // 地图操作函数
 // ----------------------------
 function openLocation(loc) {
+  // ✅ 更稳：只要 name 有值就认为有组织（因为你初始 name 为空）
+  const hasOrg = loc?.hasOrg === true || (loc?.name && String(loc.name).trim() !== "");
+  if (!hasOrg) {
+    alert("该地标暂无组织信息");
+    return;
+  }
+
+  // ✅ 如果取到了真实 orgId 就用它，否则兜底用 loc.id
+  const id = loc.orgId ?? loc.id;
+
   router.push({
-    name: "Org",              // 路由 name（你路由里要配成 Org）
-    params: { id: loc.id },   // /org/:id
-    query: {                  // 可选：带一些展示信息
-      name: loc.name || "",
+    path: `/org/${String(id)}`,  // 要求 router/index.js 有 /org/:id
+    query: {
       joinTime: loc.joinTime || "",
     },
   });
