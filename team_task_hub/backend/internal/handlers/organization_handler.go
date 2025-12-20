@@ -1572,6 +1572,7 @@ func (h *OrganizationHandler) UpdateActivityHandler(c *gin.Context) {
 // @Router /api/organization/{orgID}/activities/public [get]
 func (h *OrganizationHandler) GetOrgPublicActivitiesHandler(c *gin.Context) {
 	//传入并且验证参数
+	userID := c.GetUint("userID")
 	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
@@ -1580,16 +1581,17 @@ func (h *OrganizationHandler) GetOrgPublicActivitiesHandler(c *gin.Context) {
 	}
 
 	// 调用服务层，明确查询公开活动
-	activities, err := h.activityService.GetOrgActivities(uint(orgID), "public")
+	activities, count, err := h.activityService.GetOrgActivities(uint(orgID), userID, "public")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取公开活动列表失败: " + err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "获取公开活动列表成功",
-		"data":    activities,
+		"success":          true,
+		"message":          "获取公开活动列表成功",
+		"data":             activities,
+		"paticipatedCount": count,
 	})
 }
 
@@ -1609,6 +1611,7 @@ func (h *OrganizationHandler) GetOrgPublicActivitiesHandler(c *gin.Context) {
 // @Router /api/organization/{orgID}/activities/internal [get]
 func (h *OrganizationHandler) GetOrgInternalActivitiesHandler(c *gin.Context) {
 	//传入并且验证参数
+	userID := c.GetUint("userID")
 	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
@@ -1617,16 +1620,17 @@ func (h *OrganizationHandler) GetOrgInternalActivitiesHandler(c *gin.Context) {
 	}
 
 	// 调用服务层，明确查询非公开活动
-	activities, err := h.activityService.GetOrgActivities(uint(orgID), "org_only")
+	activities, count, err := h.activityService.GetOrgActivities(uint(orgID), userID, "org_only")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取内部活动列表失败: " + err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "获取内部活动列表成功",
-		"data":    activities,
+		"success":          true,
+		"message":          "获取内部活动列表成功",
+		"data":             activities,
+		"paticipatedCount": count,
 	})
 }
 
@@ -1646,6 +1650,7 @@ func (h *OrganizationHandler) GetOrgInternalActivitiesHandler(c *gin.Context) {
 // @Router /api/organization/{orgID}/activities/assigned [get]
 func (h *OrganizationHandler) GetOrgAssignedActivitiesHandler(c *gin.Context) {
 	//传入并且验证参数
+	userID := c.GetUint("userID")
 	orgIDStr := c.Param("orgID")
 	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
 	if err != nil || orgID == 0 {
@@ -1654,16 +1659,17 @@ func (h *OrganizationHandler) GetOrgAssignedActivitiesHandler(c *gin.Context) {
 	}
 
 	// 调用服务层，明确查询高权限活动
-	activities, err := h.activityService.GetOrgActivities(uint(orgID), "admin_assign")
+	activities, count, err := h.activityService.GetOrgActivities(uint(orgID), userID, "admin_assign")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取指派活动列表失败: " + err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "获取指派活动列表成功",
-		"data":    activities,
+		"success":          true,
+		"message":          "获取指派活动列表成功",
+		"data":             activities,
+		"paticipatedCount": count,
 	})
 }
 

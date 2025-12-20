@@ -40,5 +40,5 @@ type ActivityParticipation struct {
 }
 
 func (ActivityParticipation) TableName() string {
-	return "activity_participation"
+	return "activity_participations"
 }

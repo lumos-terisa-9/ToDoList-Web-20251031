@@ -138,13 +138,13 @@ func (s *ActivityService) UpdateActivity(activityID uint, req *UpdateActivityReq
 }
 
 // GetOrgActivities 根据活动参与限制获取组织活动信息
-func (s *ActivityService) GetOrgActivities(orgID uint, participationType string) ([]models.Activity, error) {
-	activities, err := s.activityRepo.FindByOrgAndParticipation(orgID, participationType)
+func (s *ActivityService) GetOrgActivities(orgID, userID uint, participationType string) ([]models.Activity, uint, error) {
+	activities, count, err := s.activityRepo.FindByOrgAndParticipation(orgID, userID, participationType)
 	if err != nil {
-		return nil, fmt.Errorf("获取组织活动失败，原因：%v", err)
+		return nil, 0, fmt.Errorf("获取组织活动失败，原因：%v", err)
 	}
 
-	return activities, nil
+	return activities, count, nil
 }
 
 // GetActivityUsers 根据活动id获取活动参与者基本信息（姓名，账号，头像）
