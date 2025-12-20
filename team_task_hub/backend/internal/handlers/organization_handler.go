@@ -1742,7 +1742,7 @@ func (h *OrganizationHandler) ParticipateActivityHandler(c *gin.Context) {
 	}
 
 	// 从JWT中间件设置的上下文中获取当前用户ID
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
