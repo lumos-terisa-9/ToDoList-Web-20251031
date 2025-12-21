@@ -143,8 +143,18 @@ func (s *ActivityService) GetOrgActivities(orgID, userID uint, participationType
 	if err != nil {
 		return nil, 0, fmt.Errorf("获取组织活动失败，原因：%v", err)
 	}
+	//哈希记录并且去重
+	hash := make(map[uint]bool)
 
-	return activities, count, nil
+	var uniqueActivities []models.Activity
+	for _, activity := range activities {
+		//找到没有记录过的记下来
+		if _, ok := hash[activity.ID]; !ok {
+			uniqueActivities = append(uniqueActivities, activity)
+			hash[activity.ID] = true
+		}
+	}
+	return uniqueActivities, count, nil
 }
 
 // GetActivityUsers 根据活动id获取活动参与者基本信息（姓名，账号，头像）
@@ -278,7 +288,8 @@ func (s *ActivityService) CompleteActivitiesForUsers(activityID uint, userIDs []
 func (s *ActivityService) CompleteActivity(activityID uint) error {
 	//设置更新数据
 	updateData := map[string]any{
-		"status": "completed",
+		"status":       "completed",
+		"completed_at": time.Now(),
 	}
 
 	//调用数据访问层

@@ -104,39 +104,45 @@ func (r *ActivityRepository) UpdateStatus(activityID uint, updateData map[string
 // 	return activities, nil
 // }
 
-// FindByOrgAndParticipation 根据组织ID和参与类型查询活动，并按用户参与状态排序（已参与的活动在前）
+// FindByOrgAndParticipation 根据组织ID和参与类型查询活动，已参与的活动在前
 func (r *ActivityRepository) FindByOrgAndParticipation(orgID uint, userID uint, participationType string) ([]models.Activity, uint, error) {
-	var activities []models.Activity
-	var participatedCount int64
+	var participatedActivities []models.Activity
+	var otherActivities []models.Activity
 
-	// 1. 构建基础查询：此查询用于获取活动列表
-	baseQuery := r.db.Model(&models.Activity{}).
-		Select("activities.*, "+
-			"COUNT(CASE WHEN activity_participations.user_id = ? THEN 1 ELSE NULL END) > 0 as user_has_participated", userID).
-		Joins("LEFT JOIN activity_participations ON activities.id = activity_participations.activity_id").
+	// 先查询用户已参与的活动
+	err := r.db.Model(&models.Activity{}).
+		Joins("INNER JOIN activity_participations ON activities.id = activity_participations.activity_id").
 		Where("activities.organization_id = ?", orgID).
 		Where("activities.status = ?", "active").
 		Where("activities.end_time > ?", time.Now()).
 		Where("activities.participation_limit = ?", participationType).
-		Group("activities.id").
-		Order("user_has_participated DESC") //按照是否参与来排序
-
-	// 获取用户参与的活动数量（基于基础查询创建新查询，添加额外过滤）
-	countQuery := baseQuery.Session(&gorm.Session{}) // 创建基础查询的副本
-	err := countQuery.
 		Where("activity_participations.user_id = ?", userID).
-		Count(&participatedCount).Error
+		Order("activities.start_time ASC").
+		Find(&participatedActivities).Error
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// 查询活动列表（使用未修改的基础查询，获取所有活动）
-	err = baseQuery.Find(&activities).Error
+	// 查询用户未参与的其他活动
+	err = r.db.Model(&models.Activity{}).
+		Where("activities.organization_id = ?", orgID).
+		Where("activities.status = ?", "active").
+		Where("activities.end_time > ?", time.Now()).
+		Where("activities.participation_limit = ?", participationType).
+		Order("activities.start_time ASC").
+		Find(&otherActivities).Error
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return activities, uint(participatedCount), nil
+	// 合并结果
+	var allActivities []models.Activity
+	allActivities = append(allActivities, participatedActivities...)
+	allActivities = append(allActivities, otherActivities...)
+
+	return allActivities, uint(len(participatedActivities)), nil
 }
 
 // 查询某个活动的用户信息

@@ -3,6 +3,7 @@ package repositories
 import (
 	"fmt"
 	"team_task_hub/backend/internal/models"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -212,12 +213,16 @@ func (r *ActivityParticipationRepository) FindCompletedUserIDsByActivity(activit
 	return completedUserIDs, nil
 }
 
-// UpdateParticipationStatusToCompleted 将指定活动和用户的活动参与状态更新为“已完成”
+// UpdateParticipationStatusToCompleted 将指定活动和用户的活动参与状态更新为“已完成”并且记录完成时间
 func (r *ActivityParticipationRepository) UpdateParticipationStatusToCompleted(activityID uint, userIDs []uint) error {
 	// 直接构建批量更新操作
+	upDateData := map[string]any{
+		"status":       "completed",
+		"completed_at": time.Now(),
+	}
 	result := r.db.Model(&models.ActivityParticipation{}).
 		Where("activity_id = ? AND user_id IN ?", activityID, userIDs).
-		Update("status", "completed")
+		Updates(upDateData)
 
 	return result.Error
 }
