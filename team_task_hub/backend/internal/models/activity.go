@@ -14,7 +14,7 @@ type Activity struct {
 	ParticipationLimit string    `gorm:"type:ENUM('public','org_only','admin_assign');not null;default:'org_only'" json:"participation_limit"`
 
 	Status             string    `gorm:"type:ENUM('active','completed','cancelled');not null;default:'active'" json:"status"`
-	CompletedAt        time.Time `gorm:"index" json:"completed_at,omitempty"`
+	CompletedAt        time.Time `gorm:"default:'1900-01-01'" json:"completed_at,omitempty"`
 	CancellationReason string    `gorm:"type:text" json:"cancellation_reason,omitempty"`
 	// 简化外键约束
 	Organization Organization `gorm:"foreignKey:OrganizationID" json:"organization"`
