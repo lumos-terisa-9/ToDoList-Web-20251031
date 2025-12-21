@@ -302,6 +302,20 @@ definitions:
     - organization_id
     - organization_name
     type: object
+  handlers.SubmitReviewRequest:
+    properties:
+      rating:
+        maximum: 10
+        minimum: 1
+        type: integer
+      review_text:
+        maxLength: 1000
+        minLength: 1
+        type: string
+    required:
+    - rating
+    - review_text
+    type: object
   handlers.SuccessResponse:
     properties:
       message:
@@ -2122,6 +2136,57 @@ paths:
       summary: 用户参加活动/领取活动
       tags:
       - 活动参与
+  /api/organization/activities/{activityID}/reviews:
+    post:
+      consumes:
+      - application/json
+      description: 用户对参与的活动提交评分和文字评价
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 活动ID
+        in: path
+        name: activityID
+        required: true
+        type: integer
+      - description: 评价信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SubmitReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 提交活动评价
+      tags:
+      - 活动评价
   /api/organization/application/{id}:
     delete:
       consumes:
@@ -2759,6 +2824,46 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取某一天完成的组织待办
+      tags:
+      - 组织待办
+  /api/todos/activities/expiring-on-date:
+    get:
+      description: 查询用户在指定日期过期的未完成组织待办活动
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天过期的组织待办
       tags:
       - 组织待办
   /api/todos/activities/starting-on-date:

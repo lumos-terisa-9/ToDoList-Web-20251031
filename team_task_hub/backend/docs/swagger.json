@@ -1050,6 +1050,84 @@
                 }
             }
         },
+        "/api/organization/activities/{activityID}/reviews": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "用户对参与的活动提交评分和文字评价",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "活动评价"
+                ],
+                "summary": "提交活动评价",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "活动ID",
+                        "name": "activityID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "评价信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SubmitReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/organization/application/create-organization": {
             "post": {
                 "security": [
@@ -3395,6 +3473,67 @@
                 }
             }
         },
+        "/api/todos/activities/expiring-on-date": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询用户在指定日期过期的未完成组织待办活动",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "组织待办"
+                ],
+                "summary": "获取某一天过期的组织待办",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer Token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2024-01-15\"",
+                        "description": "查询日期",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "系统内部错误",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/todos/activities/starting-on-date": {
             "get": {
                 "security": [
@@ -4702,6 +4841,25 @@
                 "organization_name": {
                     "type": "string",
                     "maxLength": 100,
+                    "minLength": 1
+                }
+            }
+        },
+        "handlers.SubmitReviewRequest": {
+            "type": "object",
+            "required": [
+                "rating",
+                "review_text"
+            ],
+            "properties": {
+                "rating": {
+                    "type": "integer",
+                    "maximum": 10,
+                    "minimum": 1
+                },
+                "review_text": {
+                    "type": "string",
+                    "maxLength": 1000,
                     "minLength": 1
                 }
             }
