@@ -13,11 +13,15 @@ import (
 )
 
 type TodoService struct {
-	todoRepo *repositories.TodoRepository
+	todoRepo     *repositories.TodoRepository
+	activityRepo *repositories.ActivityRepository
 }
 
-func NewTodoService(todoRepo *repositories.TodoRepository) *TodoService {
-	return &TodoService{todoRepo: todoRepo}
+func NewTodoService(todoRepo *repositories.TodoRepository, activityRepo *repositories.ActivityRepository) *TodoService {
+	return &TodoService{
+		todoRepo:     todoRepo,
+		activityRepo: activityRepo,
+	}
 }
 
 // CancelTodoAndChildren 在服务层中使用事务取消待办及其子待办
@@ -511,4 +515,102 @@ func (s *TodoService) GetOneDayExpiredTodos(userID uint, dateStr string) ([]mode
 		return nil, fmt.Errorf("获取过期待办出错，%v", err)
 	}
 	return todos, nil
+}
+
+// GetTodayOrganizationTodos 获取用户今日有待办活动的组织列表
+// 查找条件：活动的开始时间或结束时间包含今天，或者活动时间段与今天有交集
+func (s *TodoService) GetTodayOrganizationTodos(userID uint) ([]models.Organization, error) {
+	startOfToday, endOfToday := TodayRange()
+
+	organizations, err := s.activityRepo.FindOrganizationsWithActivitiesInTimeRange(userID, startOfToday, endOfToday)
+	if err != nil {
+		return nil, fmt.Errorf("查询今日有活动的组织失败: %v", err)
+	}
+	return organizations, nil
+}
+
+// GetTodayTodos 获取今日组织待办
+func (s *TodoService) GetTodayOrgTodos(userID uint) ([]models.Activity, error) {
+	startOfToday, endOfToday := TodayRange()
+
+	activities, err := s.activityRepo.FindUserActivitiesOverlappingRange(userID, startOfToday, endOfToday)
+	if err != nil {
+		return nil, fmt.Errorf("查询今日待办失败: %v", err)
+	}
+	return activities, nil
+}
+
+// GetUpcomingStartingTodos 获取即将开始的组织待办（未来7天）
+func (s *TodoService) GetOrgUpcomingTodos(userID uint) ([]models.Activity, error) {
+	now := time.Now()
+	startOfTomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+	endOfNext7Days := startOfTomorrow.AddDate(0, 0, 7)
+
+	activities, err := s.activityRepo.FindUserActivitiesStartingInRange(userID, startOfTomorrow, endOfNext7Days)
+	if err != nil {
+		return nil, fmt.Errorf("查询即将开始待办失败: %v", err)
+	}
+	return activities, nil
+}
+
+// GetUpcomingEndingTodos 获取即将结束的组织待办（未来7天）
+func (s *TodoService) GetOrgUpcomingEndingTodos(userID uint) ([]models.Activity, error) {
+	startOfToday, _ := TodayRange()
+	endOfNext7Days := startOfToday.AddDate(0, 0, 8).Add(-time.Nanosecond)
+
+	activities, err := s.activityRepo.FindUserActivitiesEndingInRange(userID, startOfToday, endOfNext7Days)
+	if err != nil {
+		return nil, fmt.Errorf("查询即将结束待办失败: %v", err)
+	}
+	return activities, nil
+}
+
+// GetTodosStartingOnDate 获取某一天开始的组织待办
+func (s *TodoService) GetOrgTodosStartingOnDate(userID uint, dateStr string) ([]models.Activity, error) {
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil, fmt.Errorf("日期格式错误: %v", err)
+	}
+
+	startOfDay, endOfDay := DayRange(date)
+	activities, err := s.activityRepo.FindUserActivitiesStartingInRange(userID, startOfDay, endOfDay)
+	if err != nil {
+		return nil, fmt.Errorf("查询指定日期开始待办失败: %v", err)
+	}
+	return activities, nil
+}
+
+// GetTodosCompletedOnDate 获取某一天完成的组织待办
+func (s *TodoService) GetTodosCompletedOnDate(userID uint, dateStr string) ([]models.Activity, error) {
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil, fmt.Errorf("日期格式错误: %v", err)
+	}
+
+	startOfDay, endOfDay := DayRange(date)
+	activities, err := s.activityRepo.FindUserActivitiesCompletedInRange(userID, startOfDay, endOfDay)
+	if err != nil {
+		return nil, fmt.Errorf("查询指定日期完成待办失败: %v", err)
+	}
+	return activities, nil
+}
+
+// GetOrgTodosExpiringOnDate 获取某一天过期的组织待办
+func (s *TodoService) GetOrgTodosExpiringOnDate(userID uint, dateStr string) ([]models.Activity, error) {
+	// 解析日期字符串
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil, fmt.Errorf("日期格式错误: %v", err)
+	}
+
+	// 获取指定日期的开始和结束时间
+	startOfDay, endOfDay := DayRange(date)
+
+	// 调用数据访问层查询过期待办
+	activities, err := s.activityRepo.FindUserPendingActivitiesEndingOnDate(userID, startOfDay, endOfDay)
+	if err != nil {
+		return nil, fmt.Errorf("查询指定日期过期待办失败: %v", err)
+	}
+
+	return activities, nil
 }

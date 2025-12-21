@@ -14,13 +14,14 @@ import (
 func SetupTodoRoutes(router *gin.Engine, db *gorm.DB, authService *services.AuthService) {
 	// 待办事项路由组
 	todoRepo := repositories.NewTodoRepository(db)
-	todoService := services.NewTodoService(todoRepo)
+	activityRepo := repositories.NewActivityRepository(db)
+	todoService := services.NewTodoService(todoRepo, activityRepo)
 	todoHandler := handlers.NewTodoHandler(todoService)
 
 	todoGroup := router.Group("/api/todos")
 	todoGroup.Use(middleware.AuthMiddleware(authService))
 	{
-
+		//个人待办
 		todoGroup.POST("/createTodo", todoHandler.AddTodoHandler)
 		todoGroup.POST("/updateTodos", todoHandler.UpdateTodos)
 		todoGroup.POST("/cancel", todoHandler.CancelTodoByDetails)
@@ -33,5 +34,14 @@ func SetupTodoRoutes(router *gin.Engine, db *gorm.DB, authService *services.Auth
 		todoGroup.POST("/cancel-completedTodo", todoHandler.CancelCompletedTodo)
 		todoGroup.GET("/Get-OneDayTodos", todoHandler.GetOneDayTodos)
 		todoGroup.GET("/get-OneDayExpiredTodos", todoHandler.GetOneDayExpiredTodos)
+
+		//组织待办
+		todoGroup.GET("/organizations/today", todoHandler.GetTodayOrganizationTodos)
+		todoGroup.GET("/activities/today", todoHandler.GetTodayOrgTodos)
+		todoGroup.GET("/activities/upcoming-starting", todoHandler.GetOrgUpcomingTodos)
+		todoGroup.GET("/activities/upcoming-ending", todoHandler.GetOrgUpcomingEndingTodos)
+		todoGroup.GET("/activities/starting-on-date", todoHandler.GetOrgTodosStartingOnDate)
+		todoGroup.GET("/activities/completed-on-date", todoHandler.GetOrgTodosCompletedOnDate)
+		todoGroup.GET("/activities/expiring-on-date", todoHandler.GetOrgTodosExpiringOnDate)
 	}
 }

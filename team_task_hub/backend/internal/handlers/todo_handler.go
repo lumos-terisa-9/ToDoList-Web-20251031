@@ -825,3 +825,256 @@ func (h *TodoHandler) GetOneDayExpiredTodos(c *gin.Context) {
 		"count":   len(todos),
 	})
 }
+
+// GetTodayOrganizationTodos 获取今日有活动的组织列表
+// @Summary 获取今日有活动的组织列表
+// @Description 查询用户今日有待办活动的组织列表
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} string "查询成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/organizations/today [get]
+func (h *TodoHandler) GetTodayOrganizationTodos(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	organizations, err := h.todoService.GetTodayOrganizationTodos(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询今日有活动的组织失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":       true,
+		"message":       "查询成功",
+		"organizations": organizations,
+		"count":         len(organizations),
+	})
+}
+
+// GetTodayOrgTodos 获取今日组织待办
+// @Summary 获取今日组织待办
+// @Description 查询用户今日有待办活动的详情列表
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} string "查询成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/today [get]
+func (h *TodoHandler) GetTodayOrgTodos(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	activities, err := h.todoService.GetTodayOrgTodos(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询今日待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"activities": activities,
+		"count":      len(activities),
+	})
+}
+
+// GetOrgUpcomingTodos 获取即将开始的组织待办
+// @Summary 获取即将开始的组织待办
+// @Description 查询用户未来7天内会开始的组织待办活动
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} string "查询成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/upcoming-starting [get]
+func (h *TodoHandler) GetOrgUpcomingTodos(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	activities, err := h.todoService.GetOrgUpcomingTodos(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询即将开始待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"activities": activities,
+		"count":      len(activities),
+	})
+}
+
+// GetOrgUpcomingEndingTodos 获取即将结束的组织待办
+// @Summary 获取即将结束的组织待办
+// @Description 查询用户未来7天内会结束的组织待办活动
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Success 200 {object} string "查询成功"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/upcoming-ending [get]
+func (h *TodoHandler) GetOrgUpcomingEndingTodos(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	activities, err := h.todoService.GetOrgUpcomingEndingTodos(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询即将结束待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"activities": activities,
+		"count":      len(activities),
+	})
+}
+
+// GetOrgTodosStartingOnDate 获取某一天开始的组织待办
+// @Summary 获取某一天开始的组织待办
+// @Description 查询用户在指定日期开始的组织待办活动
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param date query string true "查询日期" example("2024-01-15")
+// @Success 200 {object} string "查询成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/starting-on-date [get]
+func (h *TodoHandler) GetOrgTodosStartingOnDate(c *gin.Context) {
+	userID := c.GetUint("userID")
+	dateStr := c.Query("date")
+
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "日期参数不能为空",
+		})
+		return
+	}
+
+	activities, err := h.todoService.GetOrgTodosStartingOnDate(userID, dateStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询指定日期开始待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"date":       dateStr,
+		"activities": activities,
+		"count":      len(activities),
+	})
+}
+
+// GetTodosCompletedOnDate 获取某一天完成的组织待办
+// @Summary 获取某一天完成的组织待办
+// @Description 查询用户在指定日期完成的活动
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param date query string true "查询日期" example("2024-01-15")
+// @Success 200 {object} string "查询成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/completed-on-date [get]
+func (h *TodoHandler) GetOrgTodosCompletedOnDate(c *gin.Context) {
+	userID := c.GetUint("userID")
+	dateStr := c.Query("date")
+
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "日期参数不能为空",
+		})
+		return
+	}
+
+	activities, err := h.todoService.GetTodosCompletedOnDate(userID, dateStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询指定日期完成待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"date":       dateStr,
+		"activities": activities,
+		"count":      len(activities),
+	})
+}
+
+// GetOrgTodosExpiringOnDate 获取某一天过期的组织待办
+// @Summary 获取某一天过期的组织待办
+// @Description 查询用户在指定日期过期的未完成组织待办活动
+// @Tags 组织待办
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param date query string true "查询日期" example("2024-01-15")
+// @Success 200 {object} string "查询成功"
+// @Failure 400 {object} string "请求参数错误"
+// @Failure 401 {object} string "未授权"
+// @Failure 500 {object} string "系统内部错误"
+// @Router /api/todos/activities/expiring-on-date [get]
+func (h *TodoHandler) GetOrgTodosExpiringOnDate(c *gin.Context) {
+	userID := c.GetUint("userID")
+	dateStr := c.Query("date")
+
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "日期参数不能为空",
+		})
+		return
+	}
+
+	activities, err := h.todoService.GetOrgTodosExpiringOnDate(userID, dateStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询指定日期过期待办失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "查询成功",
+		"date":       dateStr,
+		"activities": activities,
+		"count":      len(activities),
+	})
+}

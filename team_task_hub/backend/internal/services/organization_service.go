@@ -483,6 +483,32 @@ func (s *OrganizationService) IsOrganizationMember(orgID, userID uint) (bool, er
 	return exists, nil
 }
 
+// GetUserOrgRole 查询用户在该组织的身份
+func (s *OrganizationService) GetUserOrgRole(orgID, userID uint) (string, error) {
+	//查询是否是创建者
+	if isCreator, err := s.IsOrganizationCreator(orgID, userID); err != nil {
+		return "", fmt.Errorf("查询是否是组织创建者失败，原因：%v", err)
+	} else if isCreator {
+		return "Creator", nil
+	}
+
+	//查询是否是管理员
+	if isAdmin, err := s.IsOrganizationAdmin(orgID, userID); err != nil {
+		return "", fmt.Errorf("查询是否是组织管理员失败，原因：%v", err)
+	} else if isAdmin {
+		return "Admin", nil
+	}
+
+	//查询是否是组织成员
+	if isMember, err := s.IsOrganizationMember(orgID, userID); err != nil {
+		return "", fmt.Errorf("查询是否是组织成员失败，原因：%v", err)
+	} else if isMember {
+		return "Member", nil
+	}
+
+	return "None", nil //如果都不是，返回None
+}
+
 // FindOrgInfoByName 根据关键词模糊化查询组织
 func (s *OrganizationService) FindOrgInfoByName(name string) ([]models.OrgInfo, error) {
 	cleanName := strings.TrimSpace(name)

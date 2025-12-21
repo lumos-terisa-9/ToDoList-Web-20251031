@@ -1908,6 +1908,48 @@ paths:
       summary: 移除组织成员
       tags:
       - 组织管理
+  /api/organization/{orgID}/users/{userID}/role:
+    get:
+      consumes:
+      - application/json
+      description: 根据组织ID和用户ID查询用户在组织中的身份角色（Creator/Admin/Member/None）
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 组织ID
+        in: path
+        name: orgID
+        required: true
+        type: integer
+      - description: 用户ID
+        in: path
+        name: userID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户组织角色
+      tags:
+      - 组织管理
   /api/organization/{orgID}/users/search:
     get:
       consumes:
@@ -2679,6 +2721,176 @@ paths:
       summary: 获取某一天开始的待办事项
       tags:
       - 待办查询
+  /api/todos/activities/completed-on-date:
+    get:
+      description: 查询用户在指定日期完成的活动
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天完成的组织待办
+      tags:
+      - 组织待办
+  /api/todos/activities/starting-on-date:
+    get:
+      description: 查询用户在指定日期开始的组织待办活动
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 查询日期
+        example: '"2024-01-15"'
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "400":
+          description: 请求参数错误
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取某一天开始的组织待办
+      tags:
+      - 组织待办
+  /api/todos/activities/today:
+    get:
+      description: 查询用户今日有待办活动的详情列表
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取今日组织待办
+      tags:
+      - 组织待办
+  /api/todos/activities/upcoming-ending:
+    get:
+      description: 查询用户未来7天内会结束的组织待办活动
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取即将结束的组织待办
+      tags:
+      - 组织待办
+  /api/todos/activities/upcoming-starting:
+    get:
+      description: 查询用户未来7天内会开始的组织待办活动
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取即将开始的组织待办
+      tags:
+      - 组织待办
   /api/todos/cancel:
     post:
       consumes:
@@ -3030,6 +3242,36 @@ paths:
       summary: 获取某一天过期的待办事项
       tags:
       - 待办查询
+  /api/todos/organizations/today:
+    get:
+      description: 查询用户今日有待办活动的组织列表
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询成功
+          schema:
+            type: string
+        "401":
+          description: 未授权
+          schema:
+            type: string
+        "500":
+          description: 系统内部错误
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 获取今日有活动的组织列表
+      tags:
+      - 组织待办
   /api/todos/todayTodos:
     get:
       description: 查询与今天时间段有交集的所有未完成待办事项

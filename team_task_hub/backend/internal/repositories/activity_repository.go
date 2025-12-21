@@ -183,3 +183,132 @@ func (r *ActivityRepository) FindCancelledActivitiesByUserID(userID uint) ([]mod
 
 	return activities, err
 }
+
+// FindOrganizationsWithActivitiesInTimeRange 查找用户在时间范围内有活动的组织
+func (r *ActivityRepository) FindOrganizationsWithActivitiesInTimeRange(userID uint, startTime, endTime time.Time) ([]models.Organization, error) {
+	var organizations []models.Organization
+
+	// 使用JOIN连接三张表：organizations -> activities -> activity_participations
+	err := r.db.
+		Select("DISTINCT organizations.*"). // 去重，避免同一组织重复出现
+		Joins("JOIN activities ON activities.organization_id = organizations.id").
+		Joins("JOIN activity_participations ON activity_participations.activity_id = activities.id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("(activities.start_time BETWEEN ? AND ? OR activities.end_time BETWEEN ? AND ?)",
+			startTime, endTime, startTime, endTime).
+		Find(&organizations).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询有活动的组织失败: %v", err)
+	}
+
+	return organizations, nil
+}
+
+// FindUserActivitiesStartingInRange 查找用户在时间范围内开始的活动
+func (r *ActivityRepository) FindUserActivitiesStartingInRange(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	// 使用JOIN连接活动表和活动参与表，并预加载组织信息
+	err := r.db.
+		Joins("JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("activities.start_time BETWEEN ? AND ?", startTime, endTime).
+		Where("activities.status != ?", "cancelled").
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("Name", "LogoURL") // 只选择组织的名称和头像URL字段
+		}).
+		Find(&activities).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询开始时间范围内的活动失败: %v", err)
+	}
+
+	return activities, nil
+}
+
+// FindUserActivitiesEndingInRange 查找用户在时间范围内结束的活动
+func (r *ActivityRepository) FindUserActivitiesEndingInRange(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	err := r.db.
+		Joins("JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("activities.end_time BETWEEN ? AND ?", startTime, endTime).
+		Where("activities.status != ?", "cancelled").
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("Name", "LogoURL")
+		}).
+		Find(&activities).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询结束时间范围内的活动失败: %v", err)
+	}
+
+	return activities, nil
+}
+
+// FindUserActivitiesCompletedInRange 查找用户在时间范围内完成的活动
+func (r *ActivityRepository) FindUserActivitiesCompletedInRange(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	err := r.db.
+		Joins("JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("activity_participations.status = 'completed'").
+		Where("activity_participations.completed_at BETWEEN ? AND ?", startTime, endTime).
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("Name", "LogoURL")
+		}).
+		Find(&activities).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询已完成活动失败: %v", err)
+	}
+
+	return activities, nil
+}
+
+// FindUserActivitiesOverlappingRange 查找用户参与且与时间范围有交集的活动
+func (r *ActivityRepository) FindUserActivitiesOverlappingRange(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	// 活动与时间范围有交集的查询条件：
+	// 活动开始时间 <= 范围结束时间 AND 活动结束时间 >= 范围开始时间
+	err := r.db.
+		Joins("JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("activities.start_time <= ? AND activities.end_time >= ?", endTime, startTime).
+		Where("activities.status != ?", "cancelled").
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("Name", "LogoURL")
+		}).
+		Find(&activities).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询时间范围有交集的活动失败: %v", err)
+	}
+
+	return activities, nil
+}
+
+// 在 activityRepository 结构体中实现
+func (r *ActivityRepository) FindUserPendingActivitiesEndingOnDate(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
+	var activities []models.Activity
+
+	err := r.db.
+		Joins("JOIN activity_participations ON activities.id = activity_participations.activity_id").
+		Where("activity_participations.user_id = ?", userID).
+		Where("activity_participations.status = 'pending'").
+		Where("activities.end_time BETWEEN ? AND ?", startTime, endTime).
+		Preload("Organization", func(db *gorm.DB) *gorm.DB {
+			return db.Select("Name", "LogoURL")
+		}).
+		Find(&activities).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("查询指定日期过期待办失败: %v", err)
+	}
+
+	return activities, nil
+}

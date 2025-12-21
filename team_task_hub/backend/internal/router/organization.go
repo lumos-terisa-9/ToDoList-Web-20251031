@@ -121,22 +121,28 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			//用户查询公开组织活动
 			baseAuthRoutes.GET("/:orgID/activities/public", orgHandler.GetOrgPublicActivitiesHandler)
 
-			//查看活动的参与者信息
+			//用户查看活动的参与者信息
 			baseAuthRoutes.GET("/activities/:activityID/participants", orgHandler.GetActivityParticipantsHandler)
 
-			//参与活动
+			//用户参与活动
 			baseAuthRoutes.POST("/activities/:activityID/participate", orgHandler.ParticipateActivityHandler)
 
-			//未读活动
+			//用户的未读活动
 			baseAuthRoutes.GET("/me/activities/unread", orgHandler.GetUnreadActivitiesHandler)
 			baseAuthRoutes.PATCH("/me/activities/:activityID/mark-as-read", orgHandler.MarkActivityAsReadHandler)
 
-			//已经取消的活动
+			//用户的已经取消的活动
 			baseAuthRoutes.GET("/me/activities/cancelled", orgHandler.GetCancelledActivitiesHandler)
 			baseAuthRoutes.DELETE("/me/activities/cancelled/:activityID", orgHandler.DeleteCancelledActivityHandler)
 
 			//查看组织活动完成情况
-			memberRoutes.GET("/activities/:activityID/completed-users", orgHandler.GetCompletedUserIDsHandler)
+			baseAuthRoutes.GET("/activities/:activityID/completed-users", orgHandler.GetCompletedUserIDsHandler)
+
+			//查询用户在组织的身份
+			baseAuthRoutes.GET("/:orgID/users/:userID/role", orgHandler.GetUserOrgRoleHandler)
+
+			//用户评价活动
+			baseAuthRoutes.POST("/activities/:activityID/reviews", orgHandler.SubmitReviewHandler)
 		}
 	}
 }

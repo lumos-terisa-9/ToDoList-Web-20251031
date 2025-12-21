@@ -25,11 +25,12 @@ func (Activity) TableName() string {
 }
 
 type ActivityParticipation struct {
-	ID         uint   `gorm:"primaryKey;autoIncrement;type:BIGINT UNSIGNED" json:"id"`
-	ActivityID uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"activity_id"`
-	UserID     uint   `gorm:"not null;type:BIGINT UNSIGNED;index" json:"user_id"`
-	Status     string `gorm:"type:ENUM('pending', 'completed', 'cancelled');not null;default:'pending'" json:"status"`
-	IsUnread   bool   `gorm:"default:false;not null" json:"is_unread"`
+	ID          uint      `gorm:"primaryKey;autoIncrement;type:BIGINT UNSIGNED" json:"id"`
+	ActivityID  uint      `gorm:"not null;type:BIGINT UNSIGNED;index" json:"activity_id"`
+	UserID      uint      `gorm:"not null;type:BIGINT UNSIGNED;index" json:"user_id"`
+	Status      string    `gorm:"type:ENUM('pending', 'completed', 'cancelled');not null;default:'pending'" json:"status"`
+	IsUnread    bool      `gorm:"default:false;not null" json:"is_unread"`
+	CompletedAt time.Time `gorm:"default:'1900-01-01'" json:"completed_at"`
 
 	Rating     int    `gorm:"check:rating >= 0 AND rating <= 10" json:"rating"`
 	ReviewText string `gorm:"type:text" json:"review_text"`

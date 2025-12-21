@@ -1393,6 +1393,65 @@ func (h *OrganizationHandler) SearchOrganizationUsersHandler(c *gin.Context) {
 	})
 }
 
+// GetUserOrgRoleHandler 获取用户在组织中的角色
+// @Summary 获取用户组织角色
+// @Description 根据组织ID和用户ID查询用户在组织中的身份角色（Creator/Admin/Member/None）
+// @Tags 组织管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param orgID path int true "组织ID"
+// @Param userID path int true "用户ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/{orgID}/users/{userID}/role [get]
+func (h *OrganizationHandler) GetUserOrgRoleHandler(c *gin.Context) {
+	// 从URL路径中获取并验证组织ID
+	orgIDStr := c.Param("orgID")
+	orgID, err := strconv.ParseUint(orgIDStr, 10, 32)
+	if err != nil || orgID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的组织ID格式",
+		})
+		return
+	}
+
+	// 从URL路径中获取并验证用户ID
+	userIDStr := c.Param("userID")
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的用户ID格式",
+		})
+		return
+	}
+
+	// 调用服务层
+	role, err := h.orgService.GetUserOrgRole(uint(orgID), uint(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "查询用户角色失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询用户角色成功",
+		"data": gin.H{
+			"org_id":  orgID,
+			"user_id": userID,
+			"role":    role,
+		},
+	})
+}
+
 //组织活动相关接口
 
 // CreateOrganizationActivityHandler 创建组织活动
@@ -2227,5 +2286,77 @@ func (h *OrganizationHandler) CompleteActivityHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "活动已成功标记为已完成",
+	})
+}
+
+// SubmitReviewRequest 提交评价请求结构体
+type SubmitReviewRequest struct {
+	Rating     int    `json:"rating" binding:"required,min=1,max=10"`
+	ReviewText string `json:"review_text" binding:"required,min=1,max=1000"`
+}
+
+// SubmitReviewHandler 提交活动评价
+// @Summary 提交活动评价
+// @Description 用户对参与的活动提交评分和文字评价
+// @Tags 活动评价
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Authorization header string true "Bearer Token" default(Bearer )
+// @Param activityID path int true "活动ID"
+// @Param request body SubmitReviewRequest true "评价信息"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/organization/activities/{activityID}/reviews [post]
+func (h *OrganizationHandler) SubmitReviewHandler(c *gin.Context) {
+	// 从URL路径获取活动ID
+	activityIDStr := c.Param("activityID")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil || activityID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的活动ID格式",
+		})
+		return
+	}
+
+	// 从认证中间件获取用户ID
+	userID := c.GetUint("userID")
+
+	// 解析请求体
+	var req SubmitReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务层提交评价
+	err = h.activityService.SubmitReview(uint(activityID), userID, req.Rating, req.ReviewText)
+	if err != nil {
+		// 根据错误类型返回不同的状态码
+		statusCode := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "评分必须在1到10之间") {
+			statusCode = http.StatusBadRequest
+		} else if strings.Contains(err.Error(), "未找到您的参与记录") {
+			statusCode = http.StatusNotFound
+		}
+
+		c.JSON(statusCode, gin.H{
+			"success": false,
+			"message": "提交评价失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "评价提交成功",
 	})
 }

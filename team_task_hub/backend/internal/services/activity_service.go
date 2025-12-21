@@ -324,16 +324,6 @@ func (s *ActivityService) SubmitReview(activityID, userID uint, rating int, revi
 		return fmt.Errorf("未找到您的参与记录")
 	}
 
-	// 检查活动是否已结束（只有参与过的活动才能评价）
-	activity, err := s.activityRepo.GetByID(activityID)
-	if err != nil {
-		return fmt.Errorf("获取活动信息失败: %v", err)
-	}
-
-	if activity.EndTime.After(time.Now()) {
-		return fmt.Errorf("活动尚未结束，无法评价")
-	}
-
 	// 更新评价信息
 	participation.Rating = rating
 	participation.ReviewText = reviewText
