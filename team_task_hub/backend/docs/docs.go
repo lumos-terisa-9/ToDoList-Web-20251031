@@ -2385,7 +2385,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/organization/{orgID}/activities/{activityID}/complete": {
+        "/api/organization/{orgID}/activities/{activityID}/complete-activity": {
             "patch": {
                 "security": [
                     {

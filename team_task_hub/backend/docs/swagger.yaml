@@ -1284,7 +1284,7 @@ paths:
       summary: 取消组织活动
       tags:
       - 活动管理
-  /api/organization/{orgID}/activities/{activityID}/complete:
+  /api/organization/{orgID}/activities/{activityID}/complete-activity:
     patch:
       consumes:
       - application/json
