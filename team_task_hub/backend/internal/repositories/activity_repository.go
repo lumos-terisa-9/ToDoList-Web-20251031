@@ -222,7 +222,7 @@ func (r *ActivityRepository) FindUserActivitiesStartingInRange(userID uint, star
 		Where("activities.start_time BETWEEN ? AND ?", startTime, endTime).
 		Where("activities.status != ?", "cancelled").
 		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
-			return db.Select("Name", "LogoURL") // 只选择组织的名称和头像URL字段
+			return db.Select("ID", "Name", "LogoURL") // 只选择组织的名称和头像URL字段
 		}).
 		Find(&activities).Error
 
@@ -243,7 +243,7 @@ func (r *ActivityRepository) FindUserActivitiesEndingInRange(userID uint, startT
 		Where("activities.end_time BETWEEN ? AND ?", startTime, endTime).
 		Where("activities.status != ?", "cancelled").
 		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
-			return db.Select("Name", "LogoURL")
+			return db.Select("ID", "Name", "LogoURL")
 		}).
 		Find(&activities).Error
 
@@ -264,7 +264,7 @@ func (r *ActivityRepository) FindUserActivitiesCompletedInRange(userID uint, sta
 		Where("activity_participations.status = 'completed'").
 		Where("activity_participations.completed_at BETWEEN ? AND ?", startTime, endTime).
 		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
-			return db.Select("Name", "LogoURL")
+			return db.Select("ID", "Name", "LogoURL")
 		}).
 		Find(&activities).Error
 
@@ -287,7 +287,7 @@ func (r *ActivityRepository) FindUserActivitiesOverlappingRange(userID uint, sta
 		Where("activities.start_time <= ? AND activities.end_time >= ?", endTime, startTime).
 		Where("activities.status != ?", "cancelled").
 		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
-			return db.Select("Name", "LogoURL")
+			return db.Select("ID", "Name", "LogoURL")
 		}).
 		Find(&activities).Error
 
@@ -299,6 +299,7 @@ func (r *ActivityRepository) FindUserActivitiesOverlappingRange(userID uint, sta
 }
 
 // 在 activityRepository 结构体中实现
+// FindUserPendingActivitiesEndingOnDate 查找用户某个时间段结束的活动
 func (r *ActivityRepository) FindUserPendingActivitiesEndingOnDate(userID uint, startTime, endTime time.Time) ([]models.Activity, error) {
 	var activities []models.Activity
 
@@ -308,7 +309,7 @@ func (r *ActivityRepository) FindUserPendingActivitiesEndingOnDate(userID uint, 
 		Where("activity_participations.status = 'pending'").
 		Where("activities.end_time BETWEEN ? AND ?", startTime, endTime).
 		Preload("Organization", func(db *gorm.DB) *gorm.DB {
-			return db.Select("Name", "LogoURL")
+			return db.Select("ID", "Name", "LogoURL")
 		}).
 		Find(&activities).Error
 
