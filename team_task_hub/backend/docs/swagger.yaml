@@ -763,6 +763,49 @@ paths:
       summary: 测试SMTP连接
       tags:
       - 系统管理
+  /api/ai/recommendations/organizations:
+    get:
+      consumes:
+      - application/json
+      description: 根据用户描述，智能推荐相似的组织
+      parameters:
+      - default: Bearer
+        description: Bearer Token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 用户查询描述
+        example: '"找一个技术社区"'
+        in: query
+        name: query
+        required: true
+        type: string
+      - default: 5
+        description: 返回数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 智能推荐组织
+      tags:
+      - AI
   /api/auth/change_avatar:
     put:
       consumes:
@@ -2006,7 +2049,7 @@ paths:
       tags:
       - 组织管理
   /api/organization/activities/{activityID}/completed-users:
-    post:
+    get:
       consumes:
       - application/json
       description: 根据活动ID和用户ID列表，返回其中已完成该活动的用户ID数组

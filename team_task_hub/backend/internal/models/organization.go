@@ -14,6 +14,12 @@ type Organization struct {
 	Creator User `gorm:"foreignKey:CreatorID" json:"creator"`
 }
 
+// 向量化版本的组织
+type OrganizationWithEmbedding struct {
+	Organization
+	Embedding []float64 `json:"-"`
+}
+
 func (Organization) TableName() string {
 	return "organizations"
 }

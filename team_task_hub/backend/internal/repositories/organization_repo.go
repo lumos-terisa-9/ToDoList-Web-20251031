@@ -215,3 +215,14 @@ func (r *OrganizationRepository) UpdateStatus(id uint, status string) error {
 	}
 	return nil
 }
+
+// FindAllForRecommendation 获取所有组织的基本信息
+func (r *OrganizationRepository) FindAllForRecommendation() ([]models.Organization, error) {
+	var orgs []models.Organization
+	// 只选择推荐计算所需的字段，避免不必要的数据传输
+	err := r.db.Select("id", "name", "description").Find(&orgs).Error
+	if err != nil {
+		return nil, err
+	}
+	return orgs, nil
+}

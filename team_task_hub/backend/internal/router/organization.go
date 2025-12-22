@@ -73,6 +73,7 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			adminRoutes.POST("/:orgID/activities/batch-assign", orgHandler.BatchAssignActivityHandler)
 			adminRoutes.PATCH("/:orgID/activities/:activityID/complete-user", orgHandler.CompleteActivitiesForUsersHandler)
 			adminRoutes.PATCH("/:orgID/activities/:activityID/complete-activity", orgHandler.CompleteActivityHandler)
+
 		}
 
 		// 需要组织成员权限的路由
