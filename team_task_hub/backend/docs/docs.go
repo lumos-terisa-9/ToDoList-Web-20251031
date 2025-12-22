@@ -923,7 +923,7 @@ const docTemplate = `{
             }
         },
         "/api/organization/activities/{activityID}/completed-users": {
-            "get": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []

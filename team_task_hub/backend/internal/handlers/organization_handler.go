@@ -2143,7 +2143,7 @@ type GetCompletedUserIDsRequest struct {
 // @Success 200 {object} SuccessResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /api/organization/activities/{activityID}/completed-users [get]
+// @Router /api/organization/activities/{activityID}/completed-users [post]
 func (h *OrganizationHandler) GetCompletedUserIDsHandler(c *gin.Context) {
 	// 获取并验证路径参数（活动ID）
 	activityIDStr := c.Param("activityID")

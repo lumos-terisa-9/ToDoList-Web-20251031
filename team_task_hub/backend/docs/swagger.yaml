@@ -2049,7 +2049,7 @@ paths:
       tags:
       - 组织管理
   /api/organization/activities/{activityID}/completed-users:
-    get:
+    post:
       consumes:
       - application/json
       description: 根据活动ID和用户ID列表，返回其中已完成该活动的用户ID数组

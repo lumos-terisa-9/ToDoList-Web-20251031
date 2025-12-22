@@ -137,7 +137,7 @@ func SetupOrganizationRoutes(router *gin.Engine, db *gorm.DB, authService *servi
 			baseAuthRoutes.DELETE("/me/activities/cancelled/:activityID", orgHandler.DeleteCancelledActivityHandler)
 
 			//查看组织活动完成情况
-			baseAuthRoutes.GET("/activities/:activityID/completed-users", orgHandler.GetCompletedUserIDsHandler)
+			baseAuthRoutes.POST("/activities/:activityID/completed-users", orgHandler.GetCompletedUserIDsHandler)
 
 			//查询用户在组织的身份
 			baseAuthRoutes.GET("/:orgID/users/:userID/role", orgHandler.GetUserOrgRoleHandler)
