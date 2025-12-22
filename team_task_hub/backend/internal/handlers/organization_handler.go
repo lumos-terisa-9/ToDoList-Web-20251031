@@ -2259,7 +2259,7 @@ func (h *OrganizationHandler) CompleteActivitiesForUsersHandler(c *gin.Context) 
 // @Success 200 {object} SuccessResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /api/organization/{orgID}/activities/{activityID}/complete [patch]
+// @Router /api/organization/{orgID}/activities/{activityID}/complete-activity [patch]
 func (h *OrganizationHandler) CompleteActivityHandler(c *gin.Context) {
 	// 从URL路径中获取并验证活动ID
 	activityIDStr := c.Param("activityID")
