@@ -171,6 +171,9 @@ func (r *ActivityRepository) FindUnreadActivitiesByUserID(userID uint) ([]models
 		Select("activities.*").
 		Joins("INNER JOIN activity_participations ON activities.id = activity_participations.activity_id").
 		Where("activity_participations.user_id = ? AND activity_participations.is_unread = ?", userID, true).
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("ID", "Name", "LogoURL") // 只选择组织的名称和头像URL字段
+		}).
 		Find(&activities).Error
 
 	return activities, err
@@ -185,6 +188,9 @@ func (r *ActivityRepository) FindCancelledActivitiesByUserID(userID uint) ([]mod
 		Select("activities.*").
 		Joins("INNER JOIN activity_participations ON activities.id = activity_participations.activity_id").
 		Where("activity_participations.user_id = ? AND activity_participations.status = ?", userID, "cancelled").
+		Preload("Organization", func(db *gorm.DB) *gorm.DB { // 对预加载的Organization字段进行定制
+			return db.Select("ID", "Name", "LogoURL") // 只选择组织的名称和头像URL字段
+		}).
 		Find(&activities).Error
 
 	return activities, err
