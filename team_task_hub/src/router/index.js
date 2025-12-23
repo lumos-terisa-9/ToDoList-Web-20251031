@@ -29,6 +29,19 @@ const router = createRouter({
       path: '/org/:id/info',
       name: 'OrgInfo',
       component: () => import('@/views/OrgInfoPage.vue'),
+    },
+    {
+      path: '/org/:id/activities',
+      name: 'ActivityPage',
+      component: () => import('@/views/ActivityPage.vue'),
+      props: true,
+    },
+    {
+      // 添加 ActivityDetail 路由
+      path: '/org/:orgId/activity/:activityId',
+      name: 'ActivityDetail',
+      component: () => import('@/components/ActivityDetail.vue'),
+      props: true,
     }
   ],
 })

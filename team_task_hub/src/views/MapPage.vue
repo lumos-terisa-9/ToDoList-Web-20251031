@@ -1,5 +1,73 @@
 <template>
   <div class="map-container">
+    <!-- 顶部搜索框 -->
+    <div class="search-container">
+      <div class="search-input-wrapper">
+        <div class="search-icon">🔍</div>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="搜索组织名称或描述..."
+          @input="handleSearchInput"
+          @keyup.enter="performSearch"
+        />
+        <button v-if="searchQuery" class="clear-search-btn" @click="clearSearch">
+          ×
+        </button>
+      </div>
+
+      <!-- 搜索结果下拉框 -->
+      <transition name="fade-slide">
+        <div v-if="showSearchResults && searchResults.length > 0" class="search-results-dropdown">
+          <div class="search-results-header">
+            <span class="results-count">找到 {{ searchResults.length }} 个结果</span>
+            <span class="query-text">"{{ searchQuery }}"</span>
+          </div>
+
+          <div class="results-list">
+            <div
+              v-for="org in searchResults"
+              :key="org.id"
+              class="result-item"
+              @click="goToOrganization(org)"
+            >
+              <div class="org-info">
+                <div class="org-name">{{ org.name }}</div>
+                <div class="org-description">{{ org.description || '暂无描述' }}</div>
+              </div>
+              <div class="org-meta">
+                <div class="match-score">匹配度: {{ Math.round(org.similarity * 100) }}%</div>
+                <div class="match-reason">{{ org.match_reason }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-footer">
+            <button class="more-results-btn" @click="loadMoreResults">
+              <span>更多结果</span>
+              <span class="limit-indicator">(当前限制: {{ searchLimit }})</span>
+            </button>
+          </div>
+        </div>
+      </transition>
+
+      <!-- 搜索结果为空提示 -->
+      <transition name="fade">
+        <div v-if="showSearchResults && searchResults.length === 0 && !searchLoading" class="no-results">
+          未找到匹配的组织
+        </div>
+      </transition>
+
+      <!-- 搜索加载指示器 -->
+      <transition name="fade">
+        <div v-if="searchLoading" class="search-loading">
+          <div class="loading-spinner"></div>
+          <span>搜索中...</span>
+        </div>
+      </transition>
+    </div>
+
     <!-- 控制面板 -->
     <MapControls
       :locations="locations"
@@ -87,7 +155,7 @@
 import axios from "axios";
 import { useRouter } from "vue-router";
 import L from "leaflet";
-import { onMounted, ref, onUnmounted, onBeforeUnmount } from "vue";
+import { onMounted, ref, onUnmounted, onBeforeUnmount, watch } from "vue";
 import "leaflet/dist/leaflet.css";
 import MapControls from "@/components/MapControls.vue";
 import LocationDetail from "@/components/LocationDetail.vue";
@@ -113,6 +181,7 @@ defineExpose({
 // ----------------------------
 // 响应式数据
 // ----------------------------
+const API_BASE = 'http://localhost:8080/api'
 const router = useRouter();
 const map = ref(null);
 const activeLocation = ref(null);
@@ -120,6 +189,14 @@ const showOrganizationOptions = ref(false);
 const showCreateOrganizationModal = ref(false);
 const showJoinOrganizationModal = ref(false);
 const showViewApplicationsModal = ref(false);
+
+// 搜索相关数据
+const searchQuery = ref("");
+const searchResults = ref([]);
+const searchLoading = ref(false);
+const showSearchResults = ref(false);
+const searchLimit = ref(5);
+const searchDebounceTimer = ref(null);
 
 const apiBaseUrl = "http://localhost:8080"; // 你的后端地址
 // 建一个 axios 实例，统一配置 baseURL 和 token
@@ -234,6 +311,102 @@ function getTypeName(type) {
     city: '城市'
   };
   return names[type] || '未知';
+}
+
+// ----------------------------
+// 搜索功能相关函数
+// ----------------------------
+
+// 处理搜索输入（防抖）
+function handleSearchInput() {
+  if (searchDebounceTimer.value) {
+    clearTimeout(searchDebounceTimer.value);
+  }
+
+  if (searchQuery.value.trim().length === 0) {
+    showSearchResults.value = false;
+    searchResults.value = [];
+    return;
+  }
+
+  // 设置防抖，300ms后执行搜索
+  searchDebounceTimer.value = setTimeout(() => {
+    performSearch();
+  }, 300);
+}
+
+// 执行搜索
+async function performSearch() {
+  if (searchQuery.value.trim().length === 0) {
+    showSearchResults.value = false;
+    searchResults.value = [];
+    return;
+  }
+
+  searchLoading.value = true;
+  showSearchResults.value = true;
+
+  try {
+    const response = await api.get(`${API_BASE}/ai/recommendations/organizations`, {
+      method: 'GET',
+      params: {
+        query: searchQuery.value,
+        limit: searchLimit.value
+      }
+    });
+
+    if (response.data.success) {
+      searchResults.value = response.data.data.recommendations || [];
+    } else {
+      searchResults.value = [];
+      console.error("搜索失败:", response.data.message);
+    }
+  } catch (error) {
+    console.error("搜索请求出错:", error);
+    searchResults.value = [];
+  } finally {
+    searchLoading.value = false;
+  }
+}
+
+// 加载更多结果
+function loadMoreResults() {
+  searchLimit.value += 5;
+  performSearch();
+}
+
+// 清除搜索
+function clearSearch() {
+  searchQuery.value = "";
+  searchResults.value = [];
+  showSearchResults.value = false;
+  searchLimit.value = 5; // 重置限制
+}
+
+// 跳转到组织详情页
+function goToOrganization(org) {
+  if (!org || !org.id) return;
+
+  router.push({
+    path: `/org/${String(org.id)}`,
+    query: {
+      name: org.name,
+      fromSearch: true
+    },
+  });
+
+  // 关闭搜索结果
+  showSearchResults.value = false;
+  searchQuery.value = "";
+}
+
+// 点击地图其他地方关闭搜索结果
+function handleMapClick(event) {
+  // 检查点击的是否是搜索相关元素
+  const searchContainer = document.querySelector('.search-container');
+  if (searchContainer && !searchContainer.contains(event.target)) {
+    showSearchResults.value = false;
+  }
 }
 
 // ----------------------------
@@ -434,6 +607,9 @@ onMounted(async () => {
       });
     });
 
+    // 添加地图点击事件监听，用于关闭搜索结果
+    map.value.on('click', handleMapClick);
+
     window.addEventListener('resize', handleResize);
 
   } catch (error) {
@@ -444,17 +620,324 @@ onMounted(async () => {
 // 清理资源
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
+  if (searchDebounceTimer.value) {
+    clearTimeout(searchDebounceTimer.value);
+  }
 });
 
 onUnmounted(() => {
   if (map.value) {
+    map.value.off('click', handleMapClick);
     map.value.remove();
     map.value = null;
   }
 });
 </script>
 
-<!-- 添加组织管理相关样式 -->
+<!-- 搜索框样式 -->
+<style>
+.search-container {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 90%;
+  max-width: 600px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 0 16px;
+  transition: all 0.3s ease;
+}
+
+.search-input-wrapper:focus-within {
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.search-icon {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-right: 12px;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  padding: 16px 0;
+  outline: none;
+  width: 100%;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.clear-search-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* 搜索结果下拉框 */
+.search-results-dropdown {
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.search-results-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+}
+
+.results-count {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.query-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.results-list {
+  padding: 8px;
+}
+
+.result-item {
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  color: white;
+}
+
+.result-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.org-info {
+  flex: 1;
+}
+
+.org-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: white;
+}
+
+.org-description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.org-meta {
+  text-align: right;
+  margin-left: 16px;
+  min-width: 120px;
+}
+
+.match-score {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ecdc4;
+  margin-bottom: 4px;
+}
+
+.match-reason {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.search-footer {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.more-results-btn {
+  background: rgba(102, 126, 234, 0.3);
+  border: 1px solid rgba(102, 126, 234, 0.5);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.more-results-btn:hover {
+  background: rgba(102, 126, 234, 0.5);
+  transform: translateY(-2px);
+}
+
+.limit-indicator {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 无结果提示 */
+.no-results {
+  margin-top: 8px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+  font-size: 16px;
+}
+
+/* 搜索加载指示器 */
+.search-loading {
+  margin-top: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 淡入淡出动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .search-container {
+    width: 95%;
+    top: 15px;
+  }
+
+  .search-input {
+    padding: 14px 0;
+    font-size: 14px;
+  }
+
+  .org-meta {
+    min-width: 100px;
+  }
+
+  .match-reason {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-container {
+    top: 10px;
+  }
+
+  .search-input-wrapper {
+    padding: 0 12px;
+  }
+
+  .search-input {
+    padding: 12px 0;
+    font-size: 14px;
+  }
+
+  .org-name {
+    font-size: 14px;
+  }
+
+  .org-description {
+    font-size: 12px;
+  }
+
+  .more-results-btn {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+</style>
+
+<!-- 原有的样式保持不变 -->
 <style>
 /* 组织管理浮动按钮 */
 .organization-management {

@@ -1,11 +1,15 @@
 <template>
   <div class="person-page">
+    <div class="notification-wrapper">
+      <NotificationBell ref="notificationBell" />
+    </div>
     <div class="split-pane">
       <MonthCalendar
         v-model="picked"
         @select="onSelect"
         @date-click="handleDateClick"
         @load-tasks="handleLoadTasks"
+        @open-activity-modal="handleOpenActivityModal"
         class="calendar-pane"
         ref="monthCalendar"
       />
@@ -23,6 +27,7 @@
           @request-modal="handleNewTaskRequest"
           @refresh-todos="refreshTodos"
           @edit-task="handleEditTask"
+          @open-activity-modal="handleOpenActivityModal"
           class="todo-list-item"
           ref="personalTodoList"
         />
@@ -35,6 +40,7 @@
           :show-input="false"
           @refresh-todos="refreshTodos"
           @edit-task="handleEditTask"
+          @open-activity-modal="handleOpenActivityModal"
           class="todo-list-item"
           ref="orgTodoList"
         />
@@ -68,10 +74,21 @@
       @update="handleTaskUpdate"
       @complete="handleTaskComplete"
     />
+
+    <ActivityDetailModal
+      v-model:visible="showActivityModal"
+      :activity-data="selectedActivityData"
+      @close="closeActivityModal"
+      @review-submitted="handleReviewSubmitted"
+      @review-failed="handleReviewFailed"
+      class="global-activity-modal"
+    />
   </div>
 </template>
 
 <script setup>
+import ActivityDetailModal from "@/components/ActivityDetailModal.vue";
+
 const API_BASE = 'http://localhost:8080/api'
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
@@ -79,9 +96,11 @@ import MonthCalendar from '@/components/MonthCalendar.vue'
 import ToDoList from '@/components/ToDoList.vue'
 import NewTaskModal from '@/components/NewTaskModal.vue'
 import UserProfileModal from '@/components/UserProfileModal.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 
 const router = useRouter()
 
+const notificationBell = ref(null)
 const picked = ref(new Date())
 const showModal = ref(false)
 const showEditModal = ref(false) // 添加编辑模态框状态
@@ -96,6 +115,37 @@ const monthCalendar = ref(null) // 添加MonthCalendar引用
 const currentTasks = ref([]);
 const currentUpcomingTasks = ref([]);
 const currentDisplayMode = ref('today'); // 'today', 'future', 或 'completed'
+
+// 在PersonPage.vue的script中添加
+const showActivityModal = ref(false);
+const selectedActivityData = ref(null);
+
+// 添加处理函数
+function handleOpenActivityModal(task) {
+  console.log('收到打开活动详情请求:', task);
+
+  if (task.organization || task.organization_id || task.creator_organ_id > 0) {
+    selectedActivityData.value = task;
+    showActivityModal.value = true;
+  } else {
+    console.warn('这不是一个组织任务:', task);
+  }
+}
+
+function closeActivityModal() {
+  showActivityModal.value = false;
+  selectedActivityData.value = null;
+}
+
+function handleReviewSubmitted(reviewData) {
+  console.log('评价提交成功:', reviewData);
+  // 可以添加提示
+}
+
+function handleReviewFailed(errorMessage) {
+  console.error('评价提交失败:', errorMessage);
+  // 可以添加错误提示
+}
 
 // 处理从日历组件加载的任务数据
 function handleLoadTasks(taskData) {
@@ -390,6 +440,25 @@ onMounted(async () => {
 
   .calendar-pane {
     max-width: 100%;
+  }
+}
+
+/* 添加通知组件样式 */
+.person-page {
+  position: relative; /* 添加相对定位 */
+}
+
+.notification-wrapper {
+  position: fixed;
+  top: 90px;
+  right: 100px;
+  z-index: 1000;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .notification-wrapper {
+    right: 20px;
   }
 }
 </style>

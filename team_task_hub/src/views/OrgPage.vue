@@ -102,7 +102,7 @@ const keyword = ref("");
 const pressedKey = ref(null);
 
 function goBack() {
-  router.back();
+  router.push({ name: 'orgmap' });
 }
 
 /* ---------------- 主题切换 ---------------- */
@@ -151,7 +151,7 @@ const joinedTimeText = computed(() => {
 /* ---------------- 卡牌与布局 ---------------- */
 const tabs = [
   { key: "info", label: "队内信息", roman: "I", route: "OrgInfo", match: ["OrgInfo"] },
-  { key: "activity", label: "活动", roman: "II", match: ["OrgActivity"] },
+  { key: "activity", label: "活动", roman: "II", route: "ActivityPage", match: ["ActivityPage"]},
   { key: "manage", label: "组织管理", roman: "III", match: ["OrgManage"] },
   { key: "recruit", label: "招新", roman: "IV", match: ["OrgRecruit"] },
 ];

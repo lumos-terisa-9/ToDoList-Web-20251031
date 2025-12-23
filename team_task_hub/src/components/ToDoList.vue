@@ -2,6 +2,25 @@
   <div class="frosted-glass-panel">
     <h3 class="panel-title">{{ title }}</h3>
 
+    <!-- 显示组织列表（仅组织待办） -->
+    <div v-if="title === '组织待办' && activeOrganizations.length > 0" class="organizations-list">
+      <div class="organizations-header">
+        <span class="organizations-title">今日有活动的组织:</span>
+        <span class="organizations-count">{{ activeOrganizations.length }}个</span>
+      </div>
+      <div class="organizations-container">
+        <div v-for="org in activeOrganizations" :key="org.id" class="organization-item">
+          <img
+            :src="ensureGitHubAvatarUrl(org.logo_url)"
+            :alt="org.name"
+            class="organization-avatar"
+            @error="handleAvatarError"
+          />
+          <span class="organization-name">{{ org.name }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 条件渲染：只有 showInput 为 true 时才显示输入框 -->
     <div v-if="showInput" class="task-input-group">
       <input
@@ -18,13 +37,15 @@
       <ul v-if="filteredTasks.length > 0" class="task-list">
         <li v-for="task in filteredTasks" :key="task.id" class="task-item"
             :class="{ 'cancelled': task.status === 'cancelled' }">
+          <!-- 修改任务复选框部分 -->
           <div class="task-checkbox"
                :class="{
-             'completed': task.status === 'completed',
-             'cancelled': task.status === 'cancelled',
-             'clickable': displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled'
-           }"
-               @click.stop="displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled' ? toggleTaskComplete(task) : null">
+                 'completed': task.status === 'completed',
+                 'cancelled': task.status === 'cancelled',
+                 'clickable': displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled' && title !== '组织待办',
+                 'non-clickable': title === '组织待办' || task.isComingStart || task.isComingEnd
+               }"
+               @click.stop="displayMode === 'today' && !task.isComingStart && !task.isComingEnd && task.status !== 'cancelled' && title !== '组织待办' ? toggleTaskComplete(task) : null">
             <span v-if="task.status === 'completed'" class="checkmark">✓</span>
             <span v-else-if="task.status === 'cancelled'" class="cancel-mark">×</span>
           </div>
@@ -33,8 +54,18 @@
               'completed': task.status === 'completed',
               'cancelled': task.status === 'cancelled'
             }"
-                @click="openEditModal(task)">
+                @click="handleTaskClick(task)">
         {{ task.title }}
+            <!-- 如果是组织任务，显示组织信息 -->
+        <span v-if="task.organization" class="organization-info">
+          <img
+            :src="ensureGitHubAvatarUrl(task.organization.logo_url)"
+            :alt="task.organization.name"
+            class="task-organization-avatar"
+            @error="handleAvatarError"
+          />
+          <span class="task-organization-name">{{ task.organization.name }}</span>
+        </span>
       </span>
         </li>
       </ul>
@@ -57,8 +88,18 @@
               <span v-if="task.status === 'completed'" class="upcoming-checkmark">✓</span>
             </div>
             <span class="upcoming-text" :class="{ 'completed': task.status === 'completed' }"
-                  @click="openEditModal(task)">
+                  @click="handleTaskClick(task)">
           {{ task.title }}
+              <!-- 如果是组织任务，显示组织信息 -->
+          <span v-if="task.organization" class="organization-info">
+            <img
+              :src="ensureGitHubAvatarUrl(task.organization.logo_url)"
+              :alt="task.organization.name"
+              class="task-organization-avatar"
+              @error="handleAvatarError"
+            />
+            <span class="task-organization-name">{{ task.organization.name }}</span>
+          </span>
         </span>
             <!-- 修改标识符号显示 -->
             <span v-if="task.isComingStart" class="tag new-tag">new</span>
@@ -83,9 +124,9 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits, onMounted, computed } from 'vue';
+import { ref, defineProps, defineEmits, onMounted, computed, watch } from 'vue';
 
-const emit = defineEmits(['request-modal', 'add-task-object', 'refresh-todos', 'edit-task']);
+const emit = defineEmits(['request-modal', 'add-task-object', 'refresh-todos', 'edit-task', 'open-activity-modal']);
 
 const props = defineProps({
   id: {
@@ -116,8 +157,13 @@ const newTaskText = ref('');
 const apiTasks = ref([]);
 const externalTasks = ref([]); // 外部传入的任务数据
 const upcomingTasks = ref([]); // 即将开始/结束的代办
+const activeOrganizations = ref([]); // 今日有活动的组织列表
 const loading = ref(false);
 const error = ref(null);
+
+// GitHub配置
+const GITHUB_CONFIG = {
+}
 
 // 获取空状态消息
 function getEmptyMessage() {
@@ -163,14 +209,17 @@ const filteredTasks = computed(() => {
   console.log('任务数据:', tasksToFilter);
 
   if (props.title === '个人待办') {
-    // 个人待办：creator_organ_id为0且creator_user_id不为0
+    // 个人待办：creator_organ_id为0且creator_user_id不为0，或者organization_id不存在
     return tasksToFilter.filter(task =>
-      task.creator_organ_id === 0 && task.creator_user_id !== 0
+      (task.creator_organ_id === 0 && task.creator_user_id !== 0) ||
+      (!task.organization_id && !task.organization)
     );
   } else if (props.title === '组织待办') {
-    // 组织待办：creator_organ_id不为0
+    // 组织待办：creator_organ_id不为0 或 organization_id存在 或 organization对象存在
     return tasksToFilter.filter(task =>
-      task.creator_organ_id !== 0
+      task.creator_organ_id !== 0 ||
+      (task.organization_id && task.organization_id !== 0) ||
+      task.organization
     );
   }
   return tasksToFilter;
@@ -181,14 +230,17 @@ const filteredUpcomingTasks = computed(() => {
   let filteredTasks = [];
 
   if (props.title === '个人待办') {
-    // 个人待办：creator_organ_id为0且creator_user_id不为0
+    // 个人待办：creator_organ_id为0且creator_user_id不为0，或者organization_id不存在
     filteredTasks = upcomingTasks.value.filter(task =>
-      task.creator_organ_id === 0 && task.creator_user_id !== 0
+      (task.creator_organ_id === 0 && task.creator_user_id !== 0) ||
+      (!task.organization_id && !task.organization)
     );
   } else if (props.title === '组织待办') {
-    // 组织待办：creator_organ_id不为0
+    // 组织待办：creator_organ_id不为0 或 organization_id存在 或 organization对象存在
     filteredTasks = upcomingTasks.value.filter(task =>
-      task.creator_organ_id !== 0
+      task.creator_organ_id !== 0 ||
+      (task.organization_id && task.organization_id !== 0) ||
+      task.organization
     );
   } else {
     filteredTasks = upcomingTasks.value;
@@ -196,11 +248,81 @@ const filteredUpcomingTasks = computed(() => {
 
   // 按时间排序：时间近的排在上面
   return filteredTasks.sort((a, b) => {
-    const timeA = new Date(a.sortTime || a.startTime || a.endTime || a.createdAt);
-    const timeB = new Date(b.sortTime || b.startTime || b.endTime || b.createdAt);
+    const timeA = new Date(a.sortTime || a.start_time || a.startTime || a.end_time || a.endTime || a.createdAt);
+    const timeB = new Date(b.sortTime || b.start_time || b.startTime || b.end_time || b.endTime || b.createdAt);
     return timeA - timeB;
   });
 });
+
+// 获取默认头像URL
+function getDefaultAvatarUrl() {
+  return `https://${GITHUB_CONFIG.username}.github.io/${GITHUB_CONFIG.folder}/default-avatar.png`
+}
+
+// 确保头像URL使用GitHub URL
+function ensureGitHubAvatarUrl(avatarUrl) {
+  if (!avatarUrl) return getDefaultAvatarUrl()
+
+  if (avatarUrl.includes('github.io') || avatarUrl.includes('githubusercontent.com')) {
+    return avatarUrl
+  }
+
+  if (avatarUrl.startsWith('blob:') || avatarUrl.startsWith('data:') || !avatarUrl.startsWith('http')) {
+    return getDefaultAvatarUrl()
+  }
+
+  return avatarUrl
+}
+
+// 头像加载失败处理
+function handleAvatarError(event) {
+  event.target.src = getDefaultAvatarUrl()
+}
+
+// 获取今日有活动的组织列表（仅用于组织待办）
+async function loadActiveOrganizations() {
+  if (props.title !== '组织待办') return;
+
+  const token = getToken()
+  if (!token) {
+    console.error('未找到认证令牌')
+    return
+  }
+
+  try {
+    console.log('开始调用获取今日有活动的组织列表接口...');
+    const response = await fetch(`${API_BASE}/todos/organizations/today`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      console.log('获取今日有活动的组织列表接口返回的全部内容:', result)
+      if (result.success && result.organizations) {
+        activeOrganizations.value = result.organizations
+        console.log('今日有活动的组织列表:', activeOrganizations.value)
+      } else {
+        console.warn('获取组织列表返回数据格式异常:', result)
+      }
+    } else {
+      const errorText = await response.text()
+      console.error('获取组织列表失败:', response.status, errorText)
+    }
+  } catch (error) {
+    console.error('调用获取组织列表接口失败:', error)
+  }
+}
+
+// 更新组织列表的方法（由父组件调用）
+function updateOrganizations(organizations) {
+  console.log('更新组织列表数据:', organizations);
+  activeOrganizations.value = organizations || [];
+  console.log('更新后的组织列表:', activeOrganizations.value);
+}
 
 // 从API加载任务（现在主要用于刷新）
 async function loadTasksFromAPI() {
@@ -336,6 +458,12 @@ async function cancelCompletedTask(task) {
 
 // 切换任务完成状态
 async function toggleTaskComplete(task) {
+  // 组织待办不可更改，只可查看
+  if (props.title === '组织待办') {
+    console.log('组织待办不可更改，只可查看');
+    return;
+  }
+
   console.log('切换任务状态:', task.title, '当前状态:', task.status);
   console.log('任务详细信息:', task);
 
@@ -393,6 +521,12 @@ function updateUpcomingTasks(tasks) {
 
 // 打开编辑模态框
 function openEditModal(task) {
+  // 组织待办只可查看，不可编辑
+  if (props.title === '组织待办') {
+    console.log('组织待办只可查看，不可编辑');
+    return;
+  }
+
   console.log('打开编辑模态框:', task);
   emit('edit-task', task);
 }
@@ -411,15 +545,46 @@ function refreshFromAPI() {
   loadTasksFromAPI()
 }
 
+// 监听日期变化，如果是今天，重新加载组织列表
+watch(() => props.date, (newDate) => {
+  const today = new Date();
+  const isToday = newDate.getDate() === today.getDate() &&
+    newDate.getMonth() === today.getMonth() &&
+    newDate.getFullYear() === today.getFullYear();
+
+  if (props.title === '组织待办' && isToday) {
+    loadActiveOrganizations();
+  }
+});
+
 defineExpose({
   refreshFromAPI,
   updateTasks,
-  updateUpcomingTasks
+  updateUpcomingTasks,
+  updateOrganizations,
+  loadActiveOrganizations
 })
 
 onMounted(() => {
-  // 初始加载，现在由父组件控制数据
+  // 如果是组织待办，加载活动组织列表
+  if (props.title === '组织待办') {
+    loadActiveOrganizations();
+  }
 })
+
+// 新增函数：处理任务点击
+function handleTaskClick(task) {
+  // 组织待办点击应该打开活动详情弹窗
+  if (props.title === '组织待办') {
+    console.log('打开组织活动详情:', task);
+    // 发射事件给父组件
+    emit('open-activity-modal', task);
+  } else {
+    // 个人待办保持原有逻辑
+    console.log('打开编辑模态框:', task);
+    emit('edit-task', task);
+  }
+}
 </script>
 
 <style scoped>
@@ -444,6 +609,97 @@ onMounted(() => {
   margin-top: 0;
   margin-bottom: 16px; /* 减小间距 */
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* 组织列表样式 */
+.organizations-list {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.organizations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.organizations-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.organizations-count {
+  font-size: 0.8rem;
+  color: #4ecdc4;
+  background-color: rgba(78, 205, 196, 0.2);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.organizations-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.organization-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.organization-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.organization-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+}
+
+.organization-name {
+  font-size: 0.85rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* 任务中的组织信息样式 */
+.organization-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.task-organization-avatar {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.task-organization-name {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .task-input-group {

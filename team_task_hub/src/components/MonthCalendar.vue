@@ -45,6 +45,7 @@
 
 <script setup>
 import { ref, computed, defineEmits, defineProps } from 'vue'
+
 const API_BASE = 'http://localhost:8080/api'
 const props = defineProps({
   modelValue: { type: Date, required: true }
@@ -52,6 +53,12 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select', 'date-click', 'load-tasks'])
 
 const current = ref(new Date(props.modelValue))
+const showActivityModal = ref(false)
+const selectedActivityData = ref(null)
+
+// 活动缓存
+const activityCache = new Map()
+
 // 将星期表头改为英文大写以匹配图片
 const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
@@ -87,6 +94,29 @@ const weeks = computed(() => {
   }
   return result
 })
+
+function openActivityModal(activityData) {
+  console.log('MonthCalendar接收到活动数据:', activityData);
+
+  // 触发事件给父组件，让父组件显示弹窗
+  emit('open-activity-modal', activityData);
+}
+
+// 缓存活动数据
+function cacheActivityData(activity) {
+  if (activity && activity.id) {
+    activityCache.set(activity.id, activity)
+  }
+}
+
+// 缓存活动列表数据
+function cacheActivities(activities) {
+  if (Array.isArray(activities)) {
+    activities.forEach(activity => {
+      cacheActivityData(activity)
+    })
+  }
+}
 
 // 获取token的通用函数
 function getToken() {
@@ -126,12 +156,13 @@ function clearAllCache() {
 }
 
 // 缓存当前日期任务数据
-function cacheCurrentDateTasks(date, tasks, upcomingTasks, type) {
+function cacheCurrentDateTasks(date, tasks, upcomingTasks, type, activeOrganizations) {
   const cacheData = {
     date: date.toISOString(),
     tasks: tasks,
     upcomingTasks: upcomingTasks || [],
     type: type,
+    activeOrganizations: activeOrganizations || [],
     timestamp: new Date().getTime()
   };
   localStorage.setItem('current_date_tasks', JSON.stringify(cacheData));
@@ -152,6 +183,8 @@ function isAfterToday(date) {
   return compareDate > today;
 }
 
+// ==================== 个人代办接口 ====================
+
 // 加载今日待办
 async function loadTodayTodos() {
   const token = getToken();
@@ -169,9 +202,16 @@ async function loadTodayTodos() {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('今日待办:', result);
+      console.log('今日待办接口返回的全部内容:', result);
 
       if (result.success && result.todos) {
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
@@ -192,7 +232,6 @@ async function loadOneDayTodos(date) {
     // 修复时区问题：使用本地日期格式
     const dateStr = formatDateToLocalString(date);
     console.log('开始调用某一天开始的待办接口...', dateStr);
-    // 在 loadOneDayTodos 函数中添加
     const response = await fetch(`${API_BASE}/todos/Get-OneDayTodos?date=${dateStr}`, {
       method: 'GET',
       headers: {
@@ -203,10 +242,15 @@ async function loadOneDayTodos(date) {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('某一天开始的待办:', result);
+      console.log('某一天开始的待办接口返回的全部内容:', result);
       if (result.success && result.todos) {
-        console.log('某一天开始的待办API返回:', result);
-        console.log('todos数据:', result.todos);
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
@@ -238,10 +282,15 @@ async function loadCompletedTodos(date) {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('已完成待办:', result);
+      console.log('已完成待办接口返回的全部内容:', result);
       if (result.success && result.todos) {
-        console.log('已完成待办API返回:', result);
-        console.log('todos数据:', result.todos);
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
@@ -270,8 +319,15 @@ async function loadComingStartTodos() {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('即将开始的待办:', result);
+      console.log('即将开始的待办接口返回的全部内容:', result);
       if (result.success && result.todos) {
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
@@ -300,8 +356,15 @@ async function loadComingEndTodos() {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('即将结束的待办:', result);
+      console.log('即将结束的待办接口返回的全部内容:', result);
       if (result.success && result.todos) {
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
@@ -309,6 +372,288 @@ async function loadComingEndTodos() {
     }
   } catch (error) {
     console.error('调用即将结束的待办接口失败:', error);
+  }
+  return null;
+}
+
+// ==================== 组织代办接口 ====================
+
+// 加载今日组织待办
+async function loadTodayOrganizationTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用今日组织待办接口...');
+    const response = await fetch(`${API_BASE}/todos/activities/today`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('今日组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          // 为兼容性保留原字段
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取今日组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用今日组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载某一天开始的组织待办
+async function loadOneDayOrganizationTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用某一天开始的组织待办接口...', dateStr);
+    const response = await fetch(`${API_BASE}/todos/activities/starting-on-date?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('某一天开始的组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取某一天开始的组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用某一天开始的组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载某一天过期的组织待办
+async function loadOneDayExpiredOrganizationTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用某一天过期的组织待办接口...', dateStr);
+    const response = await fetch(`${API_BASE}/todos/activities/expiring-on-date?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('某一天过期的组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取某一天过期的组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用某一天过期的组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载某一天完成的组织待办
+async function loadCompletedOrganizationTodos(date) {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const dateStr = formatDateToLocalString(date);
+    console.log('开始调用某一天完成的组织待办接口...', dateStr);
+    const response = await fetch(`${API_BASE}/todos/activities/completed-on-date?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('某一天完成的组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取某一天完成的组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用某一天完成的组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载未来七天即将开始的组织待办
+async function loadComingStartOrganizationTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用未来七天即将开始的组织待办接口...');
+    const response = await fetch(`${API_BASE}/todos/activities/upcoming-starting`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('未来七天即将开始的组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取未来七天即将开始的组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用未来七天即将开始的组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载未来七天即将结束的组织待办
+async function loadComingEndOrganizationTodos() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用未来七天即将结束的组织待办接口...');
+    const response = await fetch(`${API_BASE}/todos/activities/upcoming-ending`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('未来七天即将结束的组织待办接口返回的全部内容:', result);
+      if (result.success && result.activities) {
+        // 转换数据结构，添加creator_organ_id字段
+        const activities = result.activities.map(activity => ({
+          ...activity,
+          creator_organ_id: activity.organization_id,
+          creator_user_id: 0,
+          organization: activity.organization
+        }));
+
+        // 缓存活动数据
+        cacheActivities(activities);
+
+        return activities;
+      }
+    } else {
+      console.error('获取未来七天即将结束的组织待办失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用未来七天即将结束的组织待办接口失败:', error);
+  }
+  return null;
+}
+
+// 加载今日有活动的组织列表
+async function loadActiveOrganizations() {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    console.log('开始调用今日有活动的组织列表接口...');
+    const response = await fetch(`${API_BASE}/todos/organizations/today`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('今日有活动的组织列表接口返回的全部内容:', result);
+      if (result.success && result.organizations) {
+        return result.organizations;
+      }
+    } else {
+      console.error('获取今日有活动的组织列表失败:', response.status);
+    }
+  } catch (error) {
+    console.error('调用今日有活动的组织列表接口失败:', error);
   }
   return null;
 }
@@ -354,118 +699,188 @@ async function selectDate(date) {
   // 清除之前的所有缓存
   clearAllCache();
 
-  // 根据日期类型加载任务
-  let tasks = [];
-  let upcomingTasks = [];
+  // 根据日期类型加载任务（同时加载个人和组织代办）
+  let personalTasks = [];
+  let organizationTasks = [];
+  let upcomingPersonalTasks = [];
+  let upcomingOrganizationTasks = [];
   let type = '';
+
+  // 获取有活动的组织列表（仅今天）
+  let activeOrgs = [];
+  if (dateInfo.isToday) {
+    activeOrgs = await loadActiveOrganizations() || [];
+  }
 
   if (dateInfo.isToday) {
     // 今天：加载今日待办 + 已完成待办 + 即将开始/结束的待办
     console.log('加载今日数据');
     type = 'today';
 
-    // 同时调用今日待办和已完成待办接口
-    const todayTodos = await loadTodayTodos(date) || [];
-    const completedTodos = await loadCompletedTodos(date) || [];
+    // 个人代办
+    const todayPersonalTodos = await loadTodayTodos(date) || [];
+    const completedPersonalTodos = await loadCompletedTodos(date) || [];
+    personalTasks = [...todayPersonalTodos, ...completedPersonalTodos];
 
-    // 合并今日待办和已完成待办
-    tasks = [...todayTodos, ...completedTodos];
+    const comingStartPersonal = await loadComingStartTodos() || [];
+    const comingEndPersonal = await loadComingEndTodos() || [];
 
-    const comingStart = await loadComingStartTodos() || [];
-    const comingEnd = await loadComingEndTodos() || [];
+    // 组织代办
+    const todayOrganizationTodos = await loadTodayOrganizationTodos() || [];
+    const completedOrganizationTodos = await loadCompletedOrganizationTodos(date) || [];
+    organizationTasks = [...todayOrganizationTodos, ...completedOrganizationTodos];
 
-    // 处理重复任务：如果任务同时出现在即将开始和即将结束中，优先标记为即将开始
-    const comingStartIds = new Set(comingStart.map(task => task.id));
+    const comingStartOrganization = await loadComingStartOrganizationTodos() || [];
+    const comingEndOrganization = await loadComingEndOrganizationTodos() || [];
 
-    // 过滤掉在即将开始中已存在的即将结束任务
-    const uniqueComingEnd = comingEnd.filter(task => !comingStartIds.has(task.id));
+    // 处理重复任务并添加标识
+    // 个人待办即将任务处理
+    const personalStartIds = new Set(comingStartPersonal.map(task => task.id));
+    const uniquePersonalEnd = comingEndPersonal.filter(task => !personalStartIds.has(task.id));
 
-    // 为即将开始的任务添加标识
-    const comingStartWithTag = comingStart.map(task => ({
+    const personalStartWithTag = comingStartPersonal.map(task => ({
       ...task,
+      creator_organ_id: 0, // 确保是个人任务
+      creator_user_id: task.creator_user_id || 1, // 确保有用户ID
       isComingStart: true,
       isComingEnd: false,
-      // 添加排序字段：使用开始时间或结束时间
-      sortTime: task.startTime || task.createdAt
+      sortTime: task.start_time || task.startTime || task.createdAt
     }));
 
-    // 为即将结束的任务添加标识
-    const comingEndWithTag = uniqueComingEnd.map(task => ({
+    const personalEndWithTag = uniquePersonalEnd.map(task => ({
       ...task,
+      creator_organ_id: 0, // 确保是个人任务
+      creator_user_id: task.creator_user_id || 1,
       isComingStart: false,
       isComingEnd: true,
-      // 添加排序字段：使用结束时间
-      sortTime: task.endTime || task.createdAt
+      sortTime: task.end_time || task.endTime || task.createdAt
     }));
 
-    // 合并并按时间排序
-    upcomingTasks = [...comingStartWithTag, ...comingEndWithTag]
+    upcomingPersonalTasks = [...personalStartWithTag, ...personalEndWithTag]
+      .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
+
+    // 组织待办即将任务处理
+    const organizationStartIds = new Set(comingStartOrganization.map(task => task.id));
+    const uniqueOrganizationEnd = comingEndOrganization.filter(task => !organizationStartIds.has(task.id));
+
+    const organizationStartWithTag = comingStartOrganization.map(task => ({
+      ...task,
+      creator_organ_id: task.creator_organ_id || task.organization_id || 1, // 确保有组织ID
+      creator_user_id: 0, // 组织任务用户ID为0
+      isComingStart: true,
+      isComingEnd: false,
+      sortTime: task.start_time || task.startTime || task.createdAt
+    }));
+
+    const organizationEndWithTag = uniqueOrganizationEnd.map(task => ({
+      ...task,
+      creator_organ_id: task.creator_organ_id || task.organization_id || 1,
+      creator_user_id: 0,
+      isComingStart: false,
+      isComingEnd: true,
+      sortTime: task.end_time || task.endTime || task.createdAt
+    }));
+
+    upcomingOrganizationTasks = [...organizationStartWithTag, ...organizationEndWithTag]
       .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
   } else if (isAfterToday(date)) {
     // 今天之后：加载某一天开始的待办
     console.log('加载未来日期数据');
     type = 'future';
-    tasks = await loadOneDayTodos(date) || [];
+    personalTasks = await loadOneDayTodos(date) || [];
+    organizationTasks = await loadOneDayOrganizationTodos(date) || [];
   } else {
     // 今天之前：加载已完成待办 + 过期待办
-    console.log('加载过去日期数据 - 使用已完成待办和过期待办接口');
+    console.log('加载过去日期数据');
     type = 'completed';
 
-    // 同时调用已完成待办和过期待办接口
-    const completedTodos = await loadCompletedTodos(date) || [];
-    const expiredTodos = await loadOneDayExpiredTodos(date) || [];
+    // 个人代办
+    const completedPersonalTodos = await loadCompletedTodos(date) || [];
+    const expiredPersonalTodos = await loadOneDayExpiredTodos(date) || [];
 
-    console.log('已完成待办数量:', completedTodos.length);
-    console.log('过期待办数量:', expiredTodos.length);
-    console.log('已完成待办:', completedTodos);
-    console.log('过期待办:', expiredTodos);
-
-    // 合并两个接口的结果并去重
-    const allTodosMap = new Map();
-
-    // 先添加已完成待办（优先级高）
-    completedTodos.forEach(todo => {
-      allTodosMap.set(todo.id, {
+    // 合并个人代办结果并去重
+    const personalTodosMap = new Map();
+    completedPersonalTodos.forEach(todo => {
+      personalTodosMap.set(todo.id, {
         ...todo,
+        creator_organ_id: 0, // 确保是个人任务
+        creator_user_id: todo.creator_user_id || 1,
         isExpired: false,
-        status: 'completed' // 确保状态为已完成
+        status: 'completed'
       });
     });
 
-    // 添加过期待办，如果已存在则跳过（因为已完成优先级更高）
-    expiredTodos.forEach(todo => {
-      if (!allTodosMap.has(todo.id)) {
-        // 只出现在过期列表中，保持过期状态
-        allTodosMap.set(todo.id, {
+    expiredPersonalTodos.forEach(todo => {
+      if (!personalTodosMap.has(todo.id)) {
+        personalTodosMap.set(todo.id, {
           ...todo,
+          creator_organ_id: 0, // 确保是个人任务
+          creator_user_id: todo.creator_user_id || 1,
           isExpired: true,
-          status: todo.status || 'expired' // 设置为过期状态
+          status: todo.status || 'expired'
         });
       } else {
-        // 如果任务同时出现在两个列表中，标记为已完成（覆盖过期状态）
-        console.log('任务同时出现在已完成和过期列表中，标记为已完成:', todo.title);
-        allTodosMap.set(todo.id, {
-          ...allTodosMap.get(todo.id),
+        personalTodosMap.set(todo.id, {
+          ...personalTodosMap.get(todo.id),
           isExpired: false,
-          status: 'completed' // 强制设置为已完成状态
+          status: 'completed'
         });
       }
     });
 
-    tasks = Array.from(allTodosMap.values());
-    console.log('合并后的任务数量:', tasks.length);
-    console.log('合并后的任务:', tasks);
+    personalTasks = Array.from(personalTodosMap.values());
+
+    // 组织代办
+    const completedOrganizationTodos = await loadCompletedOrganizationTodos(date) || [];
+    const expiredOrganizationTodos = await loadOneDayExpiredOrganizationTodos(date) || [];
+
+    // 合并组织代办结果并去重
+    const organizationTodosMap = new Map();
+    completedOrganizationTodos.forEach(todo => {
+      organizationTodosMap.set(todo.id, {
+        ...todo,
+        creator_organ_id: todo.creator_organ_id || todo.organization_id || 1,
+        creator_user_id: 0, // 组织任务用户ID为0
+        isExpired: false,
+        status: 'completed'
+      });
+    });
+
+    expiredOrganizationTodos.forEach(todo => {
+      if (!organizationTodosMap.has(todo.id)) {
+        organizationTodosMap.set(todo.id, {
+          ...todo,
+          creator_organ_id: todo.creator_organ_id || todo.organization_id || 1,
+          creator_user_id: 0,
+          isExpired: true,
+          status: todo.status || 'expired'
+        });
+      } else {
+        organizationTodosMap.set(todo.id, {
+          ...organizationTodosMap.get(todo.id),
+          isExpired: false,
+          status: 'completed'
+        });
+      }
+    });
+
+    organizationTasks = Array.from(organizationTodosMap.values());
   }
 
+  // 合并所有任务
+  const allTasks = [...personalTasks, ...organizationTasks];
+  const allUpcomingTasks = [...upcomingPersonalTasks, ...upcomingOrganizationTasks];
+
   // 缓存当前日期数据
-  cacheCurrentDateTasks(date, tasks, upcomingTasks, type);
+  cacheCurrentDateTasks(date, allTasks, allUpcomingTasks, type, activeOrgs);
 
   // 将任务数据传递给父组件
   emit('load-tasks', {
     date: date,
-    tasks: tasks,
-    upcomingTasks: upcomingTasks,
-    type: type
+    tasks: allTasks,
+    upcomingTasks: allUpcomingTasks,
+    type: type,
+    activeOrganizations: activeOrgs
   });
 }
 
@@ -486,102 +901,182 @@ defineExpose({
     clearAllCache();
 
     // 重新加载任务
-    let tasks = [];
-    let upcomingTasks = [];
+    let personalTasks = [];
+    let organizationTasks = [];
+    let upcomingPersonalTasks = [];
+    let upcomingOrganizationTasks = [];
     let type = '';
+
+    // 获取有活动的组织列表（仅今天）
+    let activeOrgs = [];
+    if (isToday(date)) {
+      activeOrgs = await loadActiveOrganizations() || [];
+    }
 
     if (isToday(date)) {
       type = 'today';
-      tasks = await loadTodayTodos(date) || [];
-      const comingStart = await loadComingStartTodos() || [];
-      const comingEnd = await loadComingEndTodos() || [];
 
-      // 处理重复任务：如果任务同时出现在即将开始和即将结束中，优先标记为即将开始
-      const comingStartIds = new Set(comingStart.map(task => task.id));
-      const uniqueComingEnd = comingEnd.filter(task => !comingStartIds.has(task.id));
+      // 个人代办
+      personalTasks = await loadTodayTodos(date) || [];
+      const comingStartPersonal = await loadComingStartTodos() || [];
+      const comingEndPersonal = await loadComingEndTodos() || [];
 
-      const comingStartWithTag = comingStart.map(task => ({
+      // 组织代办
+      organizationTasks = await loadTodayOrganizationTodos() || [];
+      const comingStartOrganization = await loadComingStartOrganizationTodos() || [];
+      const comingEndOrganization = await loadComingEndOrganizationTodos() || [];
+
+      // 处理即将开始/结束的个人任务
+      const personalStartIds = new Set(comingStartPersonal.map(task => task.id));
+      const uniquePersonalEnd = comingEndPersonal.filter(task => !personalStartIds.has(task.id));
+
+      const personalStartWithTag = comingStartPersonal.map(task => ({
         ...task,
+        creator_organ_id: 0,
+        creator_user_id: task.creator_user_id || 1,
         isComingStart: true,
         isComingEnd: false,
-        sortTime: task.startTime || task.createdAt
+        sortTime: task.start_time || task.startTime || task.createdAt
       }));
 
-      const comingEndWithTag = uniqueComingEnd.map(task => ({
+      const personalEndWithTag = uniquePersonalEnd.map(task => ({
         ...task,
+        creator_organ_id: 0,
+        creator_user_id: task.creator_user_id || 1,
         isComingStart: false,
         isComingEnd: true,
-        sortTime: task.endTime || task.createdAt
+        sortTime: task.end_time || task.endTime || task.createdAt
       }));
 
-      upcomingTasks = [...comingStartWithTag, ...comingEndWithTag]
+      upcomingPersonalTasks = [...personalStartWithTag, ...personalEndWithTag]
+        .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
+
+      // 处理即将开始/结束的组织任务
+      const organizationStartIds = new Set(comingStartOrganization.map(task => task.id));
+      const uniqueOrganizationEnd = comingEndOrganization.filter(task => !organizationStartIds.has(task.id));
+
+      const organizationStartWithTag = comingStartOrganization.map(task => ({
+        ...task,
+        creator_organ_id: task.creator_organ_id || task.organization_id || 1,
+        creator_user_id: 0,
+        isComingStart: true,
+        isComingEnd: false,
+        sortTime: task.start_time || task.startTime || task.createdAt
+      }));
+
+      const organizationEndWithTag = uniqueOrganizationEnd.map(task => ({
+        ...task,
+        creator_organ_id: task.creator_organ_id || task.organization_id || 1,
+        creator_user_id: 0,
+        isComingStart: false,
+        isComingEnd: true,
+        sortTime: task.end_time || task.endTime || task.createdAt
+      }));
+
+      upcomingOrganizationTasks = [...organizationStartWithTag, ...organizationEndWithTag]
         .sort((a, b) => new Date(a.sortTime) - new Date(b.sortTime));
     } else if (isAfterToday(date)) {
       type = 'future';
-      tasks = await loadOneDayTodos(date) || [];
+      personalTasks = await loadOneDayTodos(date) || [];
+      organizationTasks = await loadOneDayOrganizationTodos(date) || [];
     } else {
       type = 'completed';
 
-      // 同时调用已完成待办和过期待办接口
-      const completedTodos = await loadCompletedTodos(date) || [];
-      const expiredTodos = await loadOneDayExpiredTodos(date) || [];
+      // 个人代办
+      const completedPersonalTodos = await loadCompletedTodos(date) || [];
+      const expiredPersonalTodos = await loadOneDayExpiredTodos(date) || [];
 
-      console.log('已完成待办数量:', completedTodos.length);
-      console.log('过期待办数量:', expiredTodos.length);
-      console.log('已完成待办:', completedTodos);
-      console.log('过期待办:', expiredTodos);
-
-      // 合并两个接口的结果并去重
-      const allTodosMap = new Map();
-
-      // 先添加已完成待办（优先级高）
-      completedTodos.forEach(todo => {
-        allTodosMap.set(todo.id, {
+      // 合并个人代办结果并去重
+      const personalTodosMap = new Map();
+      completedPersonalTodos.forEach(todo => {
+        personalTodosMap.set(todo.id, {
           ...todo,
+          creator_organ_id: 0,
+          creator_user_id: todo.creator_user_id || 1,
           isExpired: false,
           status: 'completed'
         });
       });
 
-      // 添加过期待办，如果已存在则跳过
-      expiredTodos.forEach(todo => {
-        if (!allTodosMap.has(todo.id)) {
-          allTodosMap.set(todo.id, {
+      expiredPersonalTodos.forEach(todo => {
+        if (!personalTodosMap.has(todo.id)) {
+          personalTodosMap.set(todo.id, {
             ...todo,
+            creator_organ_id: 0,
+            creator_user_id: todo.creator_user_id || 1,
             isExpired: true,
             status: todo.status || 'expired'
           });
         } else {
-          console.log('任务同时出现在已完成和过期列表中，标记为已完成:', todo.title);
-          allTodosMap.set(todo.id, {
-            ...allTodosMap.get(todo.id),
+          personalTodosMap.set(todo.id, {
+            ...personalTodosMap.get(todo.id),
             isExpired: false,
             status: 'completed'
           });
         }
       });
 
-      tasks = Array.from(allTodosMap.values());
-      console.log('合并后的任务数量:', tasks.length);
-      console.log('合并后的任务:', tasks);
+      personalTasks = Array.from(personalTodosMap.values());
+
+      // 组织代办
+      const completedOrganizationTodos = await loadCompletedOrganizationTodos(date) || [];
+      const expiredOrganizationTodos = await loadOneDayExpiredOrganizationTodos(date) || [];
+
+      // 合并组织代办结果并去重
+      const organizationTodosMap = new Map();
+      completedOrganizationTodos.forEach(todo => {
+        organizationTodosMap.set(todo.id, {
+          ...todo,
+          creator_organ_id: todo.creator_organ_id || todo.organization_id || 1,
+          creator_user_id: 0,
+          isExpired: false,
+          status: 'completed'
+        });
+      });
+
+      expiredOrganizationTodos.forEach(todo => {
+        if (!organizationTodosMap.has(todo.id)) {
+          organizationTodosMap.set(todo.id, {
+            ...todo,
+            creator_organ_id: todo.creator_organ_id || todo.organization_id || 1,
+            creator_user_id: 0,
+            isExpired: true,
+            status: todo.status || 'expired'
+          });
+        } else {
+          organizationTodosMap.set(todo.id, {
+            ...organizationTodosMap.get(todo.id),
+            isExpired: false,
+            status: 'completed'
+          });
+        }
+      });
+
+      organizationTasks = Array.from(organizationTodosMap.values());
     }
 
+    // 合并所有任务
+    const allTasks = [...personalTasks, ...organizationTasks];
+    const allUpcomingTasks = [...upcomingPersonalTasks, ...upcomingOrganizationTasks];
+
     // 缓存数据
-    cacheCurrentDateTasks(date, tasks, upcomingTasks, type);
+    cacheCurrentDateTasks(date, allTasks, allUpcomingTasks, type, activeOrgs);
 
     // 将任务数据传递给父组件
     emit('load-tasks', {
       date: date,
-      tasks: tasks,
-      upcomingTasks: upcomingTasks,
-      type: type
+      tasks: allTasks,
+      upcomingTasks: allUpcomingTasks,
+      type: type,
+      activeOrganizations: activeOrgs
     });
 
-    return { tasks, upcomingTasks };
-  }
+    return { tasks: allTasks, upcomingTasks: allUpcomingTasks };
+  },
+  openActivityModal // 暴露打开活动详情弹窗的方法
 });
 
-// 检查并更新代办（在 MonthCalendar.vue 中也添加）
+// 检查并更新代办
 async function checkAndUpdateTodos(token) {
   try {
     // 检查是否需要更新
@@ -642,8 +1137,15 @@ async function loadOneDayExpiredTodos(date) {
 
     if (response.ok) {
       const result = await response.json();
-      console.log('某一天过期的待办:', result);
+      console.log('某一天过期的待办接口返回的全部内容:', result);
       if (result.success && result.todos) {
+        // 缓存活动数据（如果是组织活动）
+        result.todos.forEach(todo => {
+          if (todo.creator_organ_id && todo.creator_organ_id > 0) {
+            cacheActivityData(todo)
+          }
+        });
+
         return result.todos;
       }
     } else {
