@@ -168,6 +168,14 @@ func (r *ActivityParticipationRepository) BatchCreateForcedAssignments(activityI
 	})
 }
 
+// MarkActivityAsUnRead 标记某个活动的所有参与成员为未读
+func (r *ActivityParticipationRepository) MarkActivityAsUnRead(activityID uint) error {
+	err := r.db.Model(&models.ActivityParticipation{}).
+		Where("activity_id = ?", activityID).
+		Update("is_unread", true).Error
+	return err
+}
+
 // MarkActivityAsRead 标记活动为已读
 func (r *ActivityParticipationRepository) MarkActivityAsRead(userID, activityID uint) error {
 	// 直接更新符合条件的记录

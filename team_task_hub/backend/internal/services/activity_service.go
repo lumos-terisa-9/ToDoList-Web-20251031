@@ -134,6 +134,11 @@ func (s *ActivityService) UpdateActivity(activityID uint, req *UpdateActivityReq
 		return fmt.Errorf("更新活动失败: %v", err)
 	}
 
+	//将所有参与者都改成未读
+	err = s.participationRepo.MarkActivityAsUnRead(activityID)
+	if err != nil {
+		return fmt.Errorf("更新活动通知失败: %v", err)
+	}
 	return nil
 }
 
