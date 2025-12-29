@@ -42,6 +42,16 @@ const router = createRouter({
       name: 'ActivityDetail',
       component: () => import('@/components/ActivityDetail.vue'),
       props: true,
+    },
+    {
+      path: "/org/:id/manage",
+      name: "ManagePage",
+      component: () => import("@/views/ManagePage.vue"),
+    },
+    {
+      path: "/org/:id/recruit",
+      name: "RecruitPage",
+      component: () => import("@/views/RecruitPage.vue"),
     }
   ],
 })
