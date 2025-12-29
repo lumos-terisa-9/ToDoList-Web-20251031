@@ -532,6 +532,7 @@ onMounted(() => {
 <style scoped>
 /* ========= 基础 ========= */
 .recruit-page {
+  padding-top: 80px;
   min-height: 100vh;
   color: rgba(255, 245, 225, 0.92);
   background:

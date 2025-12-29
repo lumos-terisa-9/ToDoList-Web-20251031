@@ -1,17 +1,24 @@
 <template>
   <div class="page">
-    <!-- 顶部栏（不改 HeaderBar.vue，只做让位） -->
+    <!-- 顶部栏（不改 HeaderBar.vue，只做让位 + sticky） -->
     <header class="topbar">
-      <button class="icon-btn" @click="goBack">‹</button>
+      <button class="icon-btn" @click="goBack" aria-label="back">‹</button>
 
       <div class="title">
-        <div class="title-main">{{ orgName || "组织信息" }}</div>
+        <div class="title-main">{{ org.org_name || orgName || "组织信息" }}</div>
         <div class="title-sub">队内信息 · 社团</div>
       </div>
 
       <div class="topbar-right">
-        <input class="search" v-model="keyword" placeholder="搜索成员 / 职位 / 关键词…" />
-        <button class="btn ghost" @click="refresh">刷新</button>
+        <input
+          class="search"
+          v-model="keyword"
+          placeholder="搜索职位 / 分工 / 关键词…"
+          @keyup.enter="refresh"
+        />
+        <button class="btn ghost" @click="refresh" :disabled="loading">
+          {{ loading ? "加载中…" : "刷新" }}
+        </button>
       </div>
     </header>
 
@@ -34,25 +41,6 @@
               <div class="hero-joined">加入时间：{{ joinedText }}</div>
             </div>
           </div>
-
-          <div class="hero-stats">
-            <div class="stat">
-              <div class="stat-num">{{ stats.member_count }}</div>
-              <div class="stat-label">成员</div>
-            </div>
-            <div class="stat">
-              <div class="stat-num">{{ stats.admin_count }}</div>
-              <div class="stat-label">管理员</div>
-            </div>
-            <div class="stat">
-              <div class="stat-num">{{ stats.week_activity_count }}</div>
-              <div class="stat-label">本周活动</div>
-            </div>
-            <div class="stat">
-              <div class="stat-num">{{ stats.active_rate }}</div>
-              <div class="stat-label">活跃度</div>
-            </div>
-          </div>
         </div>
 
         <div class="card">
@@ -68,9 +56,16 @@
             {{ org.notice || "暂无公告" }}
           </div>
         </div>
+
+        <div class="card danger-zone">
+          <div class="card-title">一次确认</div>
+          <div class="card-body">
+            <button class="btn danger" @click="leaveOrg">退出组织</button>
+          </div>
+        </div>
       </section>
 
-      <!-- 中：职位 / 分工 -->
+      <!-- 右：职位 / 分工 + 安排 -->
       <section class="col">
         <div class="card">
           <div class="card-title">职位与分工</div>
@@ -89,29 +84,6 @@
           <div class="card-title">队内安排</div>
           <div class="card-body muted">
             {{ org.schedule || "暂无安排（可后续接活动表/日历）" }}
-          </div>
-        </div>
-      </section>
-
-      <!-- 右：成员列表 -->
-      <section class="col">
-        <div class="card">
-          <div class="card-title">成员列表</div>
-          <div class="card-body">
-            <div v-if="membersFiltered.length === 0" class="muted">暂无成员数据（后端可补 members 列表）</div>
-
-            <div v-for="m in membersFiltered" :key="m.user_id" class="member-row">
-              <div class="member-name">{{ m.username }}</div>
-              <div class="member-role tag small">{{ m.role }}</div>
-              <div class="member-joined muted">{{ m.joined_at || "—" }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card danger-zone">
-          <div class="card-title">一次确认</div>
-          <div class="card-body">
-            <button class="btn danger" @click="leaveOrg">退出组织</button>
           </div>
         </div>
       </section>
@@ -138,9 +110,8 @@ const loading = ref(false);
 const error = ref("");
 
 /**
- * 你现在后端 my-organizations 只有：org_name / creator_id / logo_url / joined_at
- * 这里的 org / stats / roles / members 先按“可扩展结构”设计：
- * - 后端以后补字段，前端无需大改
+ * 可扩展结构：后端补字段前端不大改
+ * 当前从 /api/organization/my-organizations 里取到：org_name / creator_id / logo_url / joined_at
  */
 const org = ref({
   org_name: "",
@@ -152,13 +123,6 @@ const org = ref({
   schedule: "",
 });
 
-const stats = ref({
-  member_count: "—",
-  admin_count: "—",
-  week_activity_count: "—",
-  active_rate: "—",
-});
-
 const roles = ref([
   { title: "队长", username: "", desc: "统筹训练与队内事务" },
   { title: "训练负责人", username: "", desc: "安排训练计划与分组" },
@@ -166,53 +130,55 @@ const roles = ref([
   { title: "后勤负责人", username: "", desc: "器材与后勤保障" },
 ]);
 
-const members = ref([]);
+/** 统一拿 Bearer Token：兼容 token 是纯字符串或 {data:{access_token}} */
+function getBearerToken() {
+  const raw = localStorage.getItem("token");
+  if (!raw) return "";
+  try {
+    const obj = JSON.parse(raw);
+    return obj?.data?.access_token ? String(obj.data.access_token) : String(raw);
+  } catch {
+    return String(raw);
+  }
+}
 
-/** axios 实例：带 token（跟你 MapPage 一样逻辑） */
+/** axios 实例 */
 const api = axios.create({
   baseURL: "http://localhost:8080",
   timeout: 10000,
 });
 
 api.interceptors.request.use((config) => {
-  const raw = localStorage.getItem("token");
-  if (raw) {
-    try {
-      const obj = JSON.parse(raw);
-      const accessToken = obj?.data?.access_token;
-      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
-    } catch {
-      config.headers.Authorization = `Bearer ${raw}`;
-    }
-  }
+  const token = getBearerToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 /**
- * 拉取组织信息（你现在没有 org_id 字段，所以这里先用 name 做兜底）
- * ✅ 当前可用：从 /api/organization/my-organizations 找到第 orgId 个（和 MapPage 的逻辑一致）
- * ⭐ 更推荐：你后端以后加一个 /api/organization/:id/info，前端这里改 1 行即可
+ * 拉取组织信息
+ * 目前你后端 my-organizations 没有 org_id，这里用“第几个”做兜底：
+ * route.params.id=1..n  => list[0..n-1]
  */
 async function fetchOrgInfo() {
   loading.value = true;
   error.value = "";
   try {
-    // 先复用你现有接口：my-organizations
     const resp = await api.get("/api/organization/my-organizations");
     const list = resp.data?.data;
-    if (Array.isArray(list)) {
-      const idx = Math.max(0, Number(orgId.value) - 1); // id=1..4 -> index=0..3
-      const o = list[idx] || list[0];
-      if (o) {
-        org.value.org_name = o.org_name || orgName.value || "";
-        org.value.creator_id = o.creator_id ?? null;
-        org.value.logo_url = o.logo_url || "";
-        org.value.joined_at = o.joined_at || "";
-      }
+
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new Error("组织列表为空");
     }
-    // stats / members 先占位：等后端补字段再填
+
+    const idx = Math.max(0, Number(orgId.value) - 1);
+    const o = list[idx] || list[0];
+
+    org.value.org_name = o.org_name || orgName.value || "";
+    org.value.creator_id = o.creator_id ?? null;
+    org.value.logo_url = o.logo_url || "";
+    org.value.joined_at = o.joined_at || "";
   } catch (e) {
-    error.value = e?.message || String(e);
+    error.value = e?.response?.data?.message || e?.message || String(e);
   } finally {
     loading.value = false;
   }
@@ -230,13 +196,11 @@ const joinedText = computed(() => {
 const rolesFiltered = computed(() => {
   const k = keyword.value.trim();
   if (!k) return roles.value;
-  return roles.value.filter((r) => `${r.title}${r.username}${r.desc}`.includes(k));
-});
 
-const membersFiltered = computed(() => {
-  const k = keyword.value.trim();
-  if (!k) return members.value;
-  return members.value.filter((m) => `${m.username}${m.role}${m.joined_at}`.includes(k));
+  const kk = k.toLowerCase();
+  return roles.value.filter((r) =>
+    `${r.title}${r.username}${r.desc}`.toLowerCase().includes(kk)
+  );
 });
 
 function goBack() {
@@ -248,14 +212,14 @@ function refresh() {
 }
 
 function leaveOrg() {
-  alert("这里接后端退出组织 API：成功后 router.push('/orgmap')");
+  alert("这里接后端退出组织 API：成功后 router.push({name:'orgmap'})");
 }
 
 onMounted(fetchOrgInfo);
 </script>
 
 <style scoped>
-/* ===== Theme tokens（深/浅色自动适配：跟你前面用的一套） ===== */
+/* ===== Theme tokens ===== */
 :global(:root) {
   --bg: #0f1419;
   --text: #ffffff;
@@ -272,8 +236,10 @@ onMounted(fetchOrgInfo);
   --input-bg: rgba(255, 255, 255, 0.06);
   --input-border: rgba(255, 255, 255, 0.12);
 
-  --danger: rgba(255, 107, 107, 0.8);
+  --danger: rgba(255, 107, 107, 0.85);
   --glow: rgba(255, 215, 128, 0.45);
+
+  --hb: 70px; /* HeaderBar 让位高度 */
 }
 
 :global(html[data-theme="light"]) {
@@ -299,18 +265,24 @@ onMounted(fetchOrgInfo);
 /* ===== Layout ===== */
 .page {
   min-height: 100vh;
-  padding-top: 70px; /* 让 HeaderBar 不挡住 */
+  padding-top: var(--hb); /* 让 HeaderBar 不挡住 */
   background: var(--bg);
   color: var(--text);
 }
 
 .topbar {
+  position: sticky;
+  top: var(--hb);
+  z-index: 20;
+
   display: flex;
   align-items: center;
   gap: 12px;
 
   padding: 14px 16px;
   border-bottom: 1px solid var(--divider);
+  background: rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(12px);
 }
 
 .icon-btn {
@@ -348,8 +320,8 @@ onMounted(fetchOrgInfo);
 }
 
 .search {
-  width: 300px;
-  max-width: 32vw;
+  width: 320px;
+  max-width: 40vw;
   padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid var(--input-border);
@@ -390,7 +362,7 @@ onMounted(fetchOrgInfo);
 .main {
   padding: 16px;
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
+  grid-template-columns: 1.15fr 1fr;
   gap: 14px;
 }
 
@@ -470,43 +442,13 @@ onMounted(fetchOrgInfo);
   font-size: 12px;
 }
 
-.tag.small {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
 .hero-joined {
   margin-top: 6px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.hero-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.stat {
-  border-radius: 14px;
-  padding: 10px;
-  border: 1px solid var(--panel-border);
-  background: var(--btn-ghost);
-}
-
-.stat-num {
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-/* ===== Role / Member list ===== */
+/* ===== Roles ===== */
 .role-row {
   display: grid;
   grid-template-columns: 90px 1fr;
@@ -531,19 +473,6 @@ onMounted(fetchOrgInfo);
   grid-column: 1 / -1;
 }
 
-.member-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--divider);
-}
-
-.member-row:last-child {
-  border-bottom: none;
-}
-
 .danger-zone .btn.danger {
   margin-top: 8px;
 }
@@ -564,5 +493,17 @@ onMounted(fetchOrgInfo);
 
 .toast.error {
   border-color: rgba(255, 107, 107, 0.55);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 980px) {
+  .main { grid-template-columns: 1fr; }
+  .search { max-width: 60vw; }
+}
+
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar-right { width: 100%; }
+  .search { width: 100%; max-width: unset; }
 }
 </style>
